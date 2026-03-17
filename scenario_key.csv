@@ -1,0 +1,14 @@
+question_col,gov_comp_col,gov_amt_col,character,hazard,second_home,prior_info,adaptive_measures
+Hypothetical...Q1A,Q305,Q441_1,Sam,flood,0,0,0
+Hypothetical...Q2B,Hypothetical...Q2BB,Q446_1,Alex,fire,0,0,0
+Hypothetical...Q2C,Hypothetical...Q2CC,Q447_1,Alex,fire,0,1,0
+Hypothetical...Q2D,Hypothetical...Q2DD,Q448_1,Alex,fire,0,1,1
+Q461,Q462,Q463_1,Alex,fire,1,0,0
+Q464,Q465,Q466_1,Alex,fire,1,1,0
+Q467.1,Q468.1,Q469_1,Alex,fire,1,1,1
+Hypothetical...Q1B,Hypothetical...Q1BB,Hypothetical...Q1BBB_1,Sam,flood,0,0,0
+Hypothetical...Q1C,Hypothetical...Q1CC,Q443_1,Sam,flood,0,1,0
+Hypothetical...Q1D,Hypothetical...Q1DD,Q444_1,Sam,flood,0,1,1
+Q452,Q453,Q454_1,Sam,flood,1,0,0
+Q455,Q456,Q457_1,Sam,flood,1,1,0
+Q458,Q459,Q460_1,Sam,flood,1,1,1
