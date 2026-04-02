@@ -1,6 +1,6 @@
 # Description of the data and file structure
 
-We surveyed 2,000 households (via Cloud Research online survey administration) from across the continental U.S., screening for adults that were 1) owners of their residence and 2) responsible for household decisions. 
+We surveyed 2,000 households (via Cloud Research online survey administration) from across the continental U.S., screening for adults that were 1) owners of their residence and 2) responsible for household decisions. This analysis involves administering several randomized vignettes on preferences for disaster assistance.
 
 ## Files and variables
 
