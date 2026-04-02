@@ -1476,3 +1476,73 @@ policy_plot<- create_policy_plot(
 )
 
 print(policy_plot)
+
+
+#--------------------------------------------------------------------------------------------------
+#                  FIGURE:  Disaster Experience by Type                                           |        
+#--------------------------------------------------------------------------------------------------
+
+#Script to generate summary statistics related to experience of disaster and aid 
+
+
+disaster_sample=hyp%>%filter(DisasterExperience=="Yes")
+
+#deal with respondents listing several disasters and reclassify "Other" answers
+#Primary categories:
+#Blizzard / Ice storm
+#Extreme heat
+#Flooding
+#Hurricane
+#Wildfire
+#Tornado
+#Earthquake
+#Drought
+#Landslide
+
+#reclassify "Hail" into "Blizzard / Ice Storm"
+
+disaster_sample$DisasterType[grep("hail",disaster_sample$DisasterType_Text,ignore.case = TRUE)]="Blizzard / Ice storm"
+
+#reclassify various windstorms in "Other"
+
+disaster_sample$DisasterType[c(grep("hurricane",disaster_sample$DisasterType_Text,ignore.case = TRUE),grep("cyclone",disaster_sample$DisasterType_Text))]="Hurricane"
+
+disaster_sample$DisasterType[c(grep("wind",disaster_sample$DisasterType_Text,ignore.case = TRUE),grep("Derecho",disaster_sample$DisasterType_Text,ignore.case = TRUE),grep("thunderstorm",disaster_sample$DisasterType_Text),grep("Durasho",disaster_sample$DisasterType_Text))]="Tornado"
+
+#now deal with people listing multiple disasters
+
+#1. if more than 2 disasters listed, drop as too difficult to figure out which disaster was meant
+disaster_sample=disaster_sample%>%
+  filter(str_count(DisasterType,",")<=1)
+
+#2. use lexicographic assingment for remaining based on likely source of property damage:
+#NOTE - there are quite a number of people reporting Flooding and Hurricane - this procedure assigns these damages to Hurricanes
+
+ordering=c("Hurricane","Flooding","Tornado","Wildfire","Earthquake","Blizzard / Ice storm","Landslide","Extreme heat","Drought")
+
+for(i in 1:length(ordering)){
+  doubles=which(str_count(disaster_sample$DisasterType,",")==1)
+  #if none left then break
+  if(length(doubles)==0) break
+  #replace double with assigned single disaster based on lexicographic ordering
+  toreplace=grep(ordering[i],disaster_sample$DisasterType[doubles])
+  disaster_sample$DisasterType[doubles[toreplace]]=ordering[i]
+}
+
+#filter out remaining other
+disaster_sample=disaster_sample%>%
+  filter(DisasterType!="Other")
+
+#rename some categories based on reclassification
+
+disaster_sample$DisasterType=fct_recode(disaster_sample$DisasterType,"Blizzard / Hail"="Blizzard / Ice storm","Tornado / Wind Storm"="Tornado")
+
+#plot stacked bar of home damage by disaster type
+
+disaster_sample$HomeDamage_Dollar=ordered(disaster_sample$HomeDamage_Dollar,levels=c("Under $1,000","$1,000 – $9,999","$10,000 – $19,999","$20,000 – $49,999","$50,000 – $99,999","$100,000 or more"))
+
+#order so that largest disaster type is on the bottom
+disaster_sample$DisasterType=ordered(disaster_sample$DisasterType,levels=rev(c("Hurricane","Flooding","Tornado / Wind Storm","Blizzard / Hail","Wildfire","Earthquake","Landslide","Extreme heat","Drought")))
+
+a=ggplot(disaster_sample,aes(x=HomeDamage_Dollar,group=DisasterType,fill=DisasterType))+geom_bar(stat="count",position="stack")+
+  theme_bw()+labs(x="Damage to Home",y="Number of Respondents",fill="Disaster")
