@@ -24,6 +24,7 @@ We use **RStudio version 4.4.3** to run all code. Required R packages are loaded
 
 - **DisasterAssistance_Final.csv**: Raw survey data of all questions and answers.
 -  **data.rds**: Survey dataset of hypothetical vignettes and demographic questions.
+-  **IndividualsAndHouseholdsProgramValidRegistrationsV2.csv**: Data on individual assistance payments from the Individuals and Households Program. This dataset was too big to upload to github but can be accessed at: https://www.fema.gov/openfema-data-page/individuals-and-households-program-valid-registrations-v2
   
 ## 4. Code and software
 
