@@ -27,12 +27,13 @@ We use **RStudio version 4.4.3** to run all code. Required R packages are loaded
 -  **IndividualsAndHouseholdsProgramValidRegistrationsV2.csv**: Data on individual assistance payments from the Individuals and Households Program. This dataset was too big to upload to github but can be accessed at: https://www.fema.gov/openfema-data-page/individuals-and-households-program-valid-registrations-v2
   
 ## 4. Code and software
-
 These files should be run in order. 
 
-- **useful_functions.R**: File of functions used in data cleaning and analysis.
+The files below were run to make the final dataset used in the analysis (**data.rds**).
 - **cleaning.R**: Cleans raw data into usable format.
 - **generate_hyp.R**: Generates main dataset for analysis.
+
+For reproduction purposes, the above steps can be skipped and **data.rds** loaded in. 
 - **fair_main_figures.R**: Generates main figures in paper. 
 - **fair_supp_figures.R**: Generates supplementary figures in paper.
 - **additional_analyses.R**: Generates additional analyses in paper. 
