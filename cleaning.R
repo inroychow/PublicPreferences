@@ -9,7 +9,7 @@ library(stringr)
 library(dplyr)
 theme_set(theme_minimal())
 
-DisasterAssistance_FINAL <- read.csv("DisasterAssistance_FINAL.csv", stringsAsFactors = F)
+DisasterAssistance_FINAL <- read.csv("C:\\Users\\indumati\\Box\\Disaster aid survey\\disaster_survey_github\\DisasterAssistance_FINAL.csv", stringsAsFactors = F)
 
 
 # [Note] Treated = 1   -> Individuals who received information treatment
@@ -406,7 +406,7 @@ sample$AppliedSBA_Simple=fct_collapse(sample$AppliedSBA,
          
 #-------- Indu 4.24 Hypothetical re-shaping 
 
-responses_raw <- read_csv("DisasterAssistance_FINAL.csv", show_col_types = FALSE)
+responses_raw <- read_csv("C:\\Users\\indumati\\Box\\Disaster aid survey\\disaster_survey_github\\DisasterAssistance_FINAL.csv", show_col_types = FALSE)
 key_raw <- read_csv("scenario_key.csv", show_col_types = FALSE) %>%
   mutate(
     scenario_id = row_number(),

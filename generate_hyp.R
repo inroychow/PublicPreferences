@@ -1,3 +1,6 @@
+# Generate hypotheticals dataset, post-cleaning
+# ----------------------
+
 # Load libraries
 library(tidyverse)
 library(janitor)
@@ -5,10 +8,9 @@ library(fixest)
 library(lmtest)
 library(sandwich)
 library(stargazer)
-
 # Source scripts
-source("src/Fairness_main_analyses/cleaning.R")
-source("src/Fairness_main_analyses/useful_functions.R")
+source("cleaning.R")
+source("useful_functions.R")
 
 # ============================================================================
 # 1. FORMAT HYP DATA
@@ -106,7 +108,6 @@ hyp$GovTrust <- factor(hyp$GovTrust,
 # ============================================================================
 
 hyp <- hyp %>%
-  filter(Party %in% c("Republican", "Democrat", "Independent")) %>%
   mutate(
     percent_aid = 100 * (gov_amt / 250),
     scenario6 = case_when(
@@ -184,7 +185,6 @@ hyp <- hyp %>%
     gap_quartile = fct_relevel(factor(gap_quartile), "Mid-range tax progressive"),
     GovTrustBin = fct_relevel(GovTrustBin, "High government trust"),
     AnnualIncome_grouped = fct_relevel(factor(AnnualIncome_grouped), "Annual Income $100,000 to $249,999"),
-    Party = factor(Party, levels = c("Independent", "Democrat", "Republican")),
     RiskAversion_bin = factor(RiskAversion_bin, levels = c("Risk neutral", "Risk tolerant", "Risk averse")),
     Race2 = factor(Race2, levels = c("Other", "Black or African American", "White")),
     AgeGroup = factor(AgeGroup, levels = c("25 – 44", "18 – 24", "45 – 64", "65 or older"))
@@ -198,4 +198,5 @@ demo_covars <- c("DisasterExperience", "Gender", "AgeGroup", "AnnualIncome",
                  "Party", "Race2", "RiskAversion_bin", "LikelihoodFEMAApprove",
                  "CorrectFloodQuestion", "GovTrustBin", "gap_quartile")
 
-# saveRDS(hyp,"src\\analysis\\Fairness_main_analyses\\data\\data.rds")
+saveRDS(hyp,"data\\data_updated.rds")
+
