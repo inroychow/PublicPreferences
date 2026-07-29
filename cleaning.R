@@ -207,8 +207,12 @@ sample = DisasterAssistance_FINAL %>%
     
     NonWhite = ifelse(Demographics...Q2=="White", 0, 1),
     
-    Party = ifelse(Q439=="Democrat" | Q439=="Republican" | Q439=="Independent", Q439, 
-            ifelse(Q439_4_TEXT=="I’m more independent. ", "Independent", "Other")),
+    Party = case_when(
+      Q439 %in% c("Democrat", "Republican", "Independent") ~ Q439,
+      Q439 == "Other" ~ "Independent",
+      TRUE ~ "Other"          # "Prefer not to say" and blank
+    ),
+    Party = fct_relevel(factor(Party), "Independent"),
     
     
     # scenario questions -------------------------------------------------------

@@ -191,6 +191,25 @@ hyp <- hyp %>%
   )
 
 # ============================================================================
+  # 7b. DEFINE ANALYSIS SAMPLE
+  # ============================================================================
+# 39 respondents left the demographics/attitudes block blank (Q439, GovTrust,
+# tax sliders). 6 never reached the hypotheticals; the remaining 33 are dropped
+# here so every specification runs on the same people. After this,
+# Party == "Other" is only the 42 who explicitly selected "Other"
+
+incomplete_ids <- sample %>%
+  filter(Q439 == "" | is.na(Q439)) %>%
+  pull(ResponseId)
+
+hyp <- hyp %>%
+  filter(!as.character(ResponseID) %in% incomplete_ids)
+
+# checks
+hyp %>% distinct(ResponseID) %>% nrow()                 # expect 1961
+hyp %>% distinct(ResponseID, Party) %>% count(Party)    # Other = 42
+
+# ============================================================================
 # 8. DEFINE COVARIATE LIST FOR MODELS
 # ============================================================================
 
@@ -198,5 +217,5 @@ demo_covars <- c("DisasterExperience", "Gender", "AgeGroup", "AnnualIncome",
                  "Party", "Race2", "RiskAversion_bin", "LikelihoodFEMAApprove",
                  "CorrectFloodQuestion", "GovTrustBin", "gap_quartile")
 
-saveRDS(hyp,"data\\data_updated.rds")
+ saveRDS(hyp,"data\\data_updated.rds")
 

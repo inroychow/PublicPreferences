@@ -1,9 +1,8 @@
-setwd("C:/Users/indumati/Box/Disaster aid survey/disaster_survey_github")
 pacman::p_load(fixest, tidyverse,      janitor, lmtest, sandwich, stargazer, broom, quantmod, scales, ggridges, viridis, patchwork, RColorBrewer, marginaleffects, MASS)
 
-source("src/Fairness_main_analyses/useful_functions.R")
-source("src/Fairness_main_analyses/generate_hyp.R")
-
+source("useful_functions.R")
+source("generate_hyp.R")
+# hyp = readRDS("data/data_updated.rds")
 ################################################################################
 
 #-------------------------------------------------------------------------------
@@ -19,6 +18,13 @@ full_model <- feols(
 )
 summary(full_model)
 
+# Robustness removing "Missing" govtrustbin and gap_quartile
+
+#test = feols(percent_aid ~ second_home * prior_info * adaptive_measures +
+#         DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+#         Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+#       data = hyp %>% filter(GovTrustBin != "Missing", gap_quartile != "Missing"),
+#       vcov = ~ResponseID)
 # ── 2) Base case (intercept) ────────────────────────────────────────────────
 base_case_predicted <- coef(full_model)["(Intercept)"]
 
