@@ -1,0 +1,47 @@
+
+\begin{table}[htbp]
+   \caption{\label{sitab:de_reweight} Baseline and heterogeneity estimates under disaster-experience reweighting}
+   \centering
+   \begin{tabular}{lccc}
+      \tabularnewline \midrule \midrule
+      Dependent Variable: & \multicolumn{3}{c}{percent\_aid}\\
+                                   & Unweighted     & 7\% experience  & 43\% experience \\    
+      Model:                       & (1)            & (2)             & (3)\\  
+      \midrule
+      \emph{Variables}\\
+      Baseline (intercept)         & 42.69$^{***}$  & 44.60$^{***}$   & 41.89$^{***}$\\   
+                                   & (3.322)        & (3.781)         & (3.416)\\   
+      Has disaster experience      & 3.501$^{**}$   & 3.385$^{**}$    & 3.542$^{**}$\\   
+                                   & (1.483)        & (1.499)         & (1.490)\\   
+      Annual Income $<$ \$100,000  & 3.016$^{**}$   & 2.846$^{*}$     & 3.121$^{**}$\\   
+                                   & (1.400)        & (1.638)         & (1.415)\\   
+      Annual Income $>$ \$250,000  & -3.701         & -4.177          & -3.533\\   
+                                   & (3.470)        & (3.979)         & (3.537)\\   
+      Democrat                     & 3.654$^{**}$   & 3.333           & 3.782$^{**}$\\   
+                                   & (1.802)        & (2.060)         & (1.831)\\   
+      Republican                   & -0.5763        & -1.585          & -0.2265\\   
+                                   & (1.763)        & (2.008)         & (1.798)\\   
+      Risk tolerant                & 0.5256         & 1.236           & 0.2303\\   
+                                   & (1.624)        & (1.805)         & (1.652)\\   
+      Risk averse                  & 4.093$^{**}$   & 4.644$^{**}$    & 3.894$^{**}$\\   
+                                   & (1.710)        & (2.056)         & (1.725)\\   
+      Low government trust         & -6.586$^{***}$ & -7.118$^{***}$  & -6.373$^{***}$\\   
+                                   & (1.715)        & (2.071)         & (1.721)\\   
+      Least tax progressive        & 0.6010         & -0.9378         & 1.151\\   
+                                   & (1.647)        & (1.961)         & (1.662)\\   
+      Most tax progressive         & 5.315$^{***}$  & 4.391$^{**}$    & 5.656$^{***}$\\   
+                                   & (1.679)        & (1.908)         & (1.704)\\   
+      \midrule
+      \emph{Fit statistics}\\
+      Observations                 & 3,922          & 3,922           & 3,922\\  
+      R$^2$                        & 0.09690        & 0.09879         & 0.09606\\  
+      \midrule \midrule
+      \multicolumn{4}{l}{\emph{Clustered (ResponseID) standard-errors in parentheses}}\\
+      \multicolumn{4}{l}{\emph{Signif. Codes: ***: 0.01, **: 0.05, *: 0.1}}\\
+   \end{tabular}
+   
+   \par \raggedright 
+   Columns 2--3 reweight respondents so the share with disaster experience equals 7\% and 43\%. Standard errors clustered by respondent. All models include the full control set from Table \ref{sitab:aid\_full\_controls}.
+\end{table}
+
+

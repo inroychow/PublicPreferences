@@ -1,23 +1,33 @@
 pacman::p_load(fixest, tidyverse,      janitor, lmtest, sandwich, stargazer, broom, quantmod, scales, ggridges, viridis, patchwork, RColorBrewer, marginaleffects, MASS)
 
-source("useful_functions.R")
-source("generate_hyp.R")
-# hyp = readRDS("data/data_updated.rds")
+# source("useful_functions.R")
+# source("generate_hyp.R")
+hyp = readRDS("data/data_updated.rds")
 ################################################################################
 
 #-------------------------------------------------------------------------------
 #             FIGURE: FEMA grant dist and recommended aid heterogeneity        |           
 #-------------------------------------------------------------------------------
-#Percent recommended aid outcome
+
+table(hyp$info_arm, hyp$second_home)      # the 6 cells
+
+# #Percent recommended aid outcome
+# full_model1 <- feols(
+#   percent_aid ~ second_home * prior_info * adaptive_measures +
+#     DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+#     Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+#   data = hyp,
+#   vcov = ~ResponseID
+# )
+# summary(full_model)
 full_model <- feols(
-  percent_aid ~ second_home * prior_info * adaptive_measures +
+  percent_aid ~ info_arm*second_home +
     DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
     Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
   data = hyp,
   vcov = ~ResponseID
 )
 summary(full_model)
-
 # Robustness removing "Missing" govtrustbin and gap_quartile
 
 #test = feols(percent_aid ~ second_home * prior_info * adaptive_measures +
@@ -104,12 +114,15 @@ desired_levels <- c(
 )
 
 plot_data_full <- bind_rows(plot_data, baseline_groups) %>%
+  filter(term_clean != "Other") %>%
   mutate(
     covariate_label = factor(
       covariate_label,
-      levels = c("Annual Income", "Disaster Experience",
-                 "Tax Progressivity", "Government Trust",
-                 "Political Party", "Risk Preference")
+      levels = c(
+        "Annual Income", "Disaster Experience",
+        "Tax Progressivity", "Government Trust",
+        "Political Party", "Risk Preference"
+      )
     ),
     term_clean = factor(term_clean, levels = desired_levels)
   )
@@ -126,37 +139,54 @@ covariate_colors <- c(
 )
 library(data.table)
 # === IA registrations: HA (% of verified damage), CPI-adjusted to 2024 ===
-ia = data.table::fread("C:\\Users\\indumati\\Box\\FEMA DATA\\Individual Assistance\\IndividualsAndHouseholdsProgramValidRegistrationsV2.csv")
-# keep inspected with any verified loss, and positive verified loss
-ia <- ia %>%
-  filter(!is.na(rpfvl) | !is.na(ppfvl)) %>%
-  mutate(verified_loss = coalesce(rpfvl, 0) + coalesce(ppfvl, 0)) %>%
-  filter(verified_loss > 0)
+ia_raw = data.table::fread("C:\\Users\\indumati\\Box\\FEMA DATA\\Individual Assistance\\IndividualsAndHouseholdsProgramValidRegistrationsV2_2026.csv")
 
-# CPI (annual averages) anchored to 2024
+library(lubridate)   # build_owners_noRA() calls year() unprefixed
+
+# Annual CPI, 2024 base
 getSymbols("CPIAUCSL", src = "FRED", warnings = FALSE, quiet = TRUE)
-cpi_year <- data.frame(date = index(CPIAUCSL), cpi = as.numeric(CPIAUCSL)) %>%
-  mutate(year_decl = lubridate::year(date)) %>%
-  group_by(year_decl) %>%
+cpi_year <- data.frame(date = index(CPIAUCSL), cpi = as.numeric(CPIAUCSL)) |>
+  mutate(year_decl = lubridate::year(date)) |>
+  group_by(year_decl) |>
   summarise(cpi = mean(cpi, na.rm = TRUE), .groups = "drop")
 cpi_2024 <- cpi_year$cpi[cpi_year$year_decl == 2024]
 
-# join event year from IA & adjust both verified loss and HA grants
-ia <- ia %>%
-  mutate(
-    decl_date = suppressWarnings(as.Date(sub("T.*$", "", declarationDate))),
-    year_decl = lubridate::year(decl_date)
-  ) %>%
-  left_join(cpi_year, by = "year_decl") %>%
-  mutate(
-    cpi_factor          = cpi_2024 / cpi,
-    verified_loss_2024  = verified_loss * cpi_factor,
-    ha_amount_2024      = haAmount   * cpi_factor,
-    ha_pct_of_damage    = 100 * (ha_amount_2024 / verified_loss_2024)
-  ) %>%
-  filter(is.finite(ha_pct_of_damage)) %>%
-  mutate(ha_pct_of_damage = pmin(pmax(ha_pct_of_damage, 0), 100))  # cap to 0–100
+na_award_as_zero <- TRUE
+ha_cap           <- 43600
+large_loss       <- 40000   # 2024 dollars
 
+build_owners_noRA <- function(ho = c(0,1), fl = c(0,1)) {
+  ia_raw |>
+    filter(!is.na(rpfvl) | !is.na(ppfvl), ownRent == "O",
+           homeOwnersInsurance %in% ho, floodInsurance %in% fl) |>
+    mutate(
+      verified_loss = coalesce(rpfvl, 0) + coalesce(ppfvl, 0),
+      haAmount      = if (na_award_as_zero) coalesce(haAmount, 0) else haAmount,
+      loss_award    = haAmount - coalesce(rentalAssistanceAmount, 0),
+      year_decl     = year(as.Date(sub("T.*$", "", declarationDate)))
+    ) |>
+    filter(verified_loss > 0, is.na(haAmount) | haAmount <= ha_cap) |>
+    left_join(cpi_year, by = "year_decl") |>
+    mutate(verified_loss_2024 = verified_loss * cpi_2024 / cpi,
+           comp_rate          = loss_award / verified_loss) |>
+    filter(is.finite(comp_rate), comp_rate >= 0, !is.na(verified_loss_2024))
+}
+
+summarise_large <- function(d) {
+  d |> filter(verified_loss_2024 >= large_loss) |>
+    summarise(n           = n(),
+              mean_pct    = mean(comp_rate) * 100,
+              median_pct  = median(comp_rate) * 100,
+              share_lt_10 = mean(comp_rate < 0.10) * 100)
+}
+
+# Uninsured owners (no HO, no flood), HA net of rental assistance
+ia <- build_owners_noRA(ho = c(0,1), fl = c(0,1)) |>
+  mutate(ha_pct_of_damage = pmin(comp_rate * 100, 100))   # same 0–100 cap as before #199877 rows
+
+summarise_large(ia)
+
+# --------------------------------------------------------------------------------------------
 # ── 5) Heterogeneity side: keep estimates in percent (no $ conversion) ──────
 baseline_terms <- c(
   "Risk neutral","Independent","High government trust",
@@ -193,12 +223,12 @@ ia <- ia %>%
 # Add density for ALL damages
 dens_all <- density(
   ia$ha_pct_of_damage,
-  adjust = 1.5
+  adjust = 1.5, from = 0, to = 100, na.rm = TRUE
 )
 
 dens_ge40 <- density(
   ia$ha_pct_of_damage[ia$damage_bin == "≥ $40k"],
-  adjust = 1.5
+  adjust = 1.5, from = 0, to = 100, na.rm = TRUE
 )
 
 ia_ha_density_2 <- bind_rows(
@@ -239,9 +269,25 @@ x_max_pct <- max(
   na.rm = TRUE
 )
 
-x_end <- max(100, ceiling(x_max_pct / 10) * 10)
-
+x_end <- 110
 # ── 9) Build combined plot ──────────────────────────────────────────────────
+ihp_max       <- 43600
+ihp_loss      <- 250000
+ihp_pct_line  <- ihp_max / ihp_loss * 100   # ~17.4%
+
+
+
+ref_lines <- data.frame(
+  x      = c(base_case_predicted, ihp_pct_line),
+  label  = c("Baseline recommended aid",
+             "IHP max coverage\nfor $250,000 loss"),
+  colour = c("gray40", "steelblue4")
+)
+ref_lines <- ref_lines[order(ref_lines$x), ]
+ref_lines$hjust <- c(1.04, -0.04)          # left line -> label to its left; right line -> to its right
+ref_lines$y     <- y_max * c(0.99, 0.86)   # stagger heights as a second safeguard
+
+
 
 combined_plot_pct <- ggplot() +
   geom_line(
@@ -252,6 +298,12 @@ combined_plot_pct <- ggplot() +
   ) +
   geom_vline(
     xintercept = base_case_predicted,
+    colour = "gray35",
+    linetype = "dashed",
+    linewidth = 1.2
+  ) +
+  geom_vline(
+    xintercept = ihp_pct_line,
     colour = "gray35",
     linetype = "dashed",
     linewidth = 1.2
@@ -287,12 +339,12 @@ combined_plot_pct <- ggplot() +
     name = "Damage Assessed"
   ) + 
   scale_x_continuous(
-    limits = c(0, x_end),
     breaks = seq(0, x_end, by = 10),
     labels = function(x) paste0(x, "%"),
     expand = c(0, 0),
     guide  = guide_axis(n.dodge = 1)
   ) +
+  coord_cartesian(xlim = c(0, x_end)) +
   scale_y_continuous(
     limits = c(0, y_max * 1.08),
     expand = c(0, 0),
@@ -332,15 +384,24 @@ combined_plot_pct <- ggplot() +
     linetype = guide_legend(
       keywidth = grid::unit(1.2, "cm")
     )
+  ) +  annotate(
+    "text",
+    x = base_case_predicted,
+    y = y_max * 1.04,
+    label = "Baseline\nrecommended aid",
+    hjust = 1.05, vjust = 1,
+    size = 4.8, colour = "gray40",
+    lineheight = 0.9
   ) +
   annotate(
     "text",
-    x = base_case_predicted,
-    y = y_max * 1.02,
-    label = "Baseline recommended aid",
-    hjust = 1.05, size = 4.8, colour = "gray40"
+    x = ihp_pct_line,
+    y = y_max * 1.04,
+    label = "IHP \nmax coverage\nfor $250K loss",
+    hjust = 1.05, vjust = 1,
+    size = 4.8, colour = "gray35",
+    lineheight = 0.9
   )
-
 
 # Extract the y-axis labels and their corresponding colors
 axis_label_colors <- plot_data_numeric_pct %>%
@@ -361,8 +422,9 @@ combined_plot_pct <- combined_plot_pct +
 
 combined_plot_pct
 
-
-ggsave("L:\\Wetland Flood Mitigation\\Disaster aid survey\\EDA Figures\\Fairness paper figures\\dist_plot_2.12.png",
+ggsave("Figures\\dist_plot_homeowners_noRA.png",
+       plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
+ggsave("Figures\\dist_plot_7.30.png",
        plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
 
 # ggsave("L:\\Wetland Flood Mitigation\\Disaster aid survey\\EDA Figures\\Fairness paper figures\\fig1.png", plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
@@ -389,20 +451,22 @@ plot_scenario_effects <- function(model,
                                   outcome_label = "Predicted Responsibility (1–10)",
                                   save_path = NULL,
                                   width = 12, height = 6, dpi = 300,
-                                  include_second_home = TRUE) {
+                                  include_second_home = FALSE) {
   
   # ---------------------------
   # Scenario grid at baseline controls
   # ---------------------------
   grid <- data %>%
-    distinct(second_home, prior_info, adaptive_measures) %>%
-    arrange(second_home, prior_info, adaptive_measures)
+    dplyr::ungroup() %>%
+    dplyr::distinct(second_home, prior_info, adaptive_measures) %>%
+    dplyr::arrange(second_home, prior_info, adaptive_measures)
   
-  # Option: exclude second homes (keep only primary residence)
+  # baseline value of second_home, whether factor ("primary") or numeric (0)
+  sh_base <- if (is.factor(data$second_home)) levels(data$second_home)[1] else 0
+  # the include_second_home filter
   if (!include_second_home) {
-    grid <- grid %>% dplyr::filter(second_home == 0)
+    grid <- grid %>% dplyr::filter(second_home == sh_base)
   }
-  
   # helper to safely grab first level
   first_level <- function(x) {
     if (is.factor(x)) levels(x)[1] else sort(unique(x))[1]
@@ -454,8 +518,8 @@ plot_scenario_effects <- function(model,
           "Prior info, adaptation",
         TRUE ~ "Other"
       ),
-      Home_Type    = dplyr::if_else(second_home == 0, "Primary Residence", "Second Home"),
-      is_base_case = (second_home == 0 & prior_info == 0 & adaptive_measures == 0),
+      Home_Type = dplyr::if_else(second_home == sh_base, "Primary Residence", "Second Home"),
+      is_base_case = (second_home == sh_base & prior_info == 0 & adaptive_measures == 0),
       point_color  = ifelse(is_base_case, "black", Home_Type)
     )
   
@@ -611,15 +675,15 @@ p_resp <- plot_scenario_effects(
   data  = hyp,
   outcome_label = "Predicted Responsibility (1–10)",
   include_second_home = TRUE,
-  save_path = "C:/Users/indumati/Box/Disaster aid survey/EDA Figures/Fairness paper figures/fig_resp_sec.png"
+  save_path = "Figures/resp_plot_9.2.png"
 )
-
+p_resp
 p_aid <- plot_scenario_effects(
   model = m_percaid,
   data  = hyp,
   outcome_label = "Predicted Recommended Government Aid\n(% of Loss)",
   include_second_home = TRUE,
-  save_path = "C:/Users/indumati/Box/Disaster aid survey/EDA Figures/Fairness paper figures/fig_recaid_sec.png")
+  save_path = "Figures/aid_plot_9.2.png")
 
 p_aid
 
@@ -712,480 +776,243 @@ p_ridge
 lm_fit <- feols(percent_aid ~ resp, data = hyp, vcov = ~ResponseID )
 summary(lm_fit)
 
-ggsave("C:/Users/indumati/Box/Disaster aid survey/EDA Figures/Fairness paper figures/fig_ridge_vert.png",
-        p_ridge, width = 12, height = 7, dpi = 300)
-
-#-------------------------------------------------------------------------------
-#                  FIGURE:  % distributions of policy questions                |        
-#-------------------------------------------------------------------------------
-
-# select just the variables of interest
-vars <- c("GovRole", "GovRoleA", "GovRoleB",
-          "PostDisasterGovAllocate", "PostDisasterGovUse",
-          "GovInsur", "GovInsurA", "GovInsurB", "GovInsurC", "GovInsurD")
-
-percents <- hyp %>%
-  dplyr::select(all_of(vars)) %>%
-  pivot_longer(everything(), names_to = "variable", values_to = "response") %>%
-  group_by(variable, response) %>%
-  summarise(n = n(), .groups = "drop_last") %>%
-  mutate(
-    percent = 100 * n / sum(n),
-  ) %>%
-  arrange(variable, response)
-create_overall_heatmap <- function(data, likert_vars) {
-  
-  heatmap_df <- data |>
-    dplyr::select(all_of(likert_vars)) |>
-    tidyr::pivot_longer(everything(),
-                        names_to  = "Question",
-                        values_to = "Response") |>
-    filter(!is.na(Response)) |>
-    count(Question, Response, name = "n") |>
-    group_by(Question) |>
-    mutate(
-      prop           = n / sum(n),
-      Question_Label = question_labels[Question],
-      Category       = question_categories[Question]
-    ) |>
-    ungroup() |>
-    mutate(
-      Response = recode(Response,
-                        "Neither agreenor disagree" = "Neither agree nor disagree") |>
-        factor(levels = c("Strongly disagree", "Disagree",
-                          "Neither agree nor disagree", "Agree",
-                          "Strongly agree")),
-      Category = factor(Category, 
-                        levels = c("Government\nMandates", "Market\nMechanisms", "Public\nSubsidy"))
-    )
-  
-  question_order <- c(
-    "Restrict development in high-risk areas",
-    "Require disaster-resistant construction",
-    "Mandatory disaster insurance",
-    "Higher insurance cost in riskier areas",
-    "Public disaster insurance option",
-    "Home buyouts",
-    "Taxes make insurance affordable for all",
-    "Taxes make insurance affordable for low-income"
-  )
-  
-  heatmap_df <- heatmap_df |>
-    dplyr::mutate(Question_Label = factor(Question_Label, levels = rev(question_order)))
-  
-  ggplot2::ggplot(heatmap_df, ggplot2::aes(Response, Question_Label, fill = prop)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.5) +
-    ggplot2::geom_text(
-      ggplot2::aes(label = scales::percent(prop, accuracy = 1)),
-      colour = "white", size = 3, fontface = "bold"
-    ) +
-    ggplot2::facet_grid(Category ~ ., scales = "free_y", space = "free_y", switch = "y") +
-    ggplot2::scale_fill_viridis_c(
-      option = "viridis",
-      name   = "Proportion",
-      labels = scales::percent_format(accuracy = 1)
-    ) +
-    ggplot2::labs(x = "", y = "") +
-    ggplot2::theme(
-      legend.position   = "bottom",
-      legend.title      = ggplot2::element_text(size = 13, face = "bold"),
-      legend.key.width  = grid::unit(1, "cm"),
-      legend.key.height = grid::unit(0.5, "cm"),
-      axis.text.y       = ggplot2::element_text(size = 12, hjust = 1),
-      axis.text.x       = ggplot2::element_text(size = 10, angle = 45, hjust = 1),
-      strip.placement   = "outside",
-      strip.text.y.left = ggplot2::element_text(angle = 90, face = "bold", size = 11, hjust = 0.5),
-      strip.background  = ggplot2::element_rect(fill = "grey90", colour = "white"),
-      panel.spacing     = grid::unit(1, "lines")
-    )
-}
-question_categories <- c(
-  "GovRole"   = "Government\nMandates",
-  "GovRoleA"  = "Government\nMandates",
-  "GovInsur"  = "Market\nMechanisms",
-  "GovInsurB" = "Market\nMechanisms",
-  "GovInsurD" = "Public\nSubsidy",
-  "GovInsurC" = "Public\nSubsidy",
-  "GovRoleB"  = "Public\nSubsidy",
-  "GovInsurA" = "Government\nMandates"
-)
-likert_vars <- c("GovRole", "GovRoleA", "GovInsurA",
-                 "GovInsur", "GovInsurB",
-                 "GovRoleB", "GovInsurC", "GovInsurD")
-
-create_overall_heatmap(hyp, likert_vars)
-
-# ggsave("C:/Users/indumati/Box/Disaster aid survey/EDA Figures/Fairness paper figures/question_dist.png", width = 12, height = 7, dpi = 300)
+ggsave("Figures/ridge_plot_9.21.png",
+        p_ridge, width = 12, height = 7, dpi = 300) # ADD R2 IN MSPAINT
 
 
-#-------------------------------------------------------------------------------
-#                  FIGURE:  Ordinal regression for policy support              |        
-#-------------------------------------------------------------------------------
-# Helper function to run ordinal reg
-model_variables <- c("DisasterExperience", "Party", "RiskAversion_bin", "GovTrustBin", "gap_quartile")
 
-# Function to run ordinal regression for Likert-scale variables
-run_ordinal_regression <- function(dv, data, predictors = model_variables) {
-  
-  # Create formula string from predictor list
-  formula_str <- paste(dv, "~", paste(predictors, collapse = " + "))
-  
-  cat("Using formula:", formula_str, "\n")
-  
-  tryCatch({
-    # Convert the dep var to ordered factor with proper levels
-    # Define the correct order from lowest to highest agreement
-    likert_levels <- c("Strongly disagree", "Disagree", "Neither agreenor disagree", 
-                       "Agree", "Strongly agree")
-    
-    # Ensure the DV is properly ordered 
-    if (!is.ordered(data[[dv]])) {
-      data[[dv]] <- factor(data[[dv]], levels = likert_levels, ordered = TRUE)
-      cat("Converting", dv, "to ordered factor\n")
-    }
-    
-    # Check that all predictors exist in the data
-    missing_vars <- predictors[!predictors %in% names(data)]
-    if(length(missing_vars) > 0) {
-      cat("ERROR: Missing predictor variables:", paste(missing_vars, collapse = ", "), "\n")
-      return(NULL)
-    }
-    
-    model <- polr(as.formula(formula_str), data = data, Hess = TRUE)
-    
-    # Get coefficients with CIs
-    coef_table <- summary(model)$coefficients
-    
-    # Calculate CIs
-    tryCatch({
-      ci <- confint(model, level = 0.95)
-      has_ci <- TRUE
-    }, error = function(e) {
-      cat("Warning: Could not calculate confidence intervals, using SE approximation\n")
-      has_ci <<- FALSE
-      ci <<- NULL
-    })
-    
-    # Combine results
-    if (has_ci && !is.null(ci) && nrow(ci) == nrow(coef_table)) {
-      results <- data.frame(
-        Variable = rownames(coef_table),
-        Coefficient = coef_table[, "Value"],
-        SE = coef_table[, "Std. Error"],
-        t_value = coef_table[, "t value"],
-        OR = exp(coef_table[, "Value"]),
-        CI_lower = exp(ci[, 1]),
-        CI_upper = exp(ci[, 2]),
-        stringsAsFactors = FALSE
-      )
-    } else {
-      # Use SE approximation for CI
-      results <- data.frame(
-        Variable = rownames(coef_table),
-        Coefficient = coef_table[, "Value"],
-        SE = coef_table[, "Std. Error"],
-        t_value = coef_table[, "t value"],
-        OR = exp(coef_table[, "Value"]),
-        CI_lower = exp(coef_table[, "Value"] - 1.96 * coef_table[, "Std. Error"]),
-        CI_upper = exp(coef_table[, "Value"] + 1.96 * coef_table[, "Std. Error"]),
-        stringsAsFactors = FALSE
-      )
-    }
-    
-    # Calc p-values 
-    results$p_value <- 2 * (1 - pnorm(abs(results$t_value)))
-    
-    # Add sigstars
-    results$sig <- case_when(
-      results$p_value < 0.001 ~ "***",
-      results$p_value < 0.01 ~ "**",
-      results$p_value < 0.05 ~ "*",
-      results$p_value < 0.1 ~ ".",
-      TRUE ~ ""
-    )
-    
-    return(list(model = model, results = results))
-    
-  }, error = function(e) {
-    cat("Error in ordinal regression for", dv, ":", e$message, "\n")
-    return(NULL)
-  })
+
+#-----------------------------------------------------------------------------------------
+#                            FIGURE:  MEDIATION                                          |           
+#-----------------------------------------------------------------------------------------
+library(dplyr)
+library(mediation)
+library(fixest)
+
+hyp <- readRDS("data/data_updated.rds")
+
+# ---- 1. Exposures ---------------------------------------------------
+
+table(hyp$info_arm, hyp$second_home)      # the 6 cells
+
+
+# ---- 2. Estimation sample -------------------------------------------
+# Subset ONCE so the mediator and outcome models are fit on identical rows.
+
+W_all <- c("Gender", "AgeGroup", "AnnualIncome_grouped", "Race2", "DisasterExperience", "Party", "GovTrustBin", "gap_quartile", "RiskAversion_bin", "hazard", "AnnualIncome", "RiskAversion")
+
+est <- hyp %>%
+  dplyr::select(all_of(c("percent_aid", "resp", "info_arm", "second_home",
+                         "hazard", W_all, "ResponseID"))) %>%
+  filter(complete.cases(.)) %>%
+  as.data.frame()
+
+nrow(est); n_distinct(est$ResponseID)
+est$resp <- as.numeric(est$resp)
+
+W = c("Gender", "AgeGroup", "AnnualIncome_grouped", "Race2", "DisasterExperience", "Party", "GovTrustBin", "gap_quartile", "RiskAversion_bin", "hazard")
+
+
+
+# ---- 3. The two models ----------------------------------------------
+
+rhs <- paste(W, collapse = " + ")
+
+m_M <- lm(as.formula(paste("resp ~ info_arm + second_home +", rhs)), est)
+m_Y <- lm(as.formula(paste("percent_aid ~ info_arm * resp + second_home * resp +",
+                           rhs)), est)
+
+# # No covariates -- treatment and mediator only
+# m_M0 <- lm(resp ~ info_arm + second_home, est)
+# m_Y0 <- lm(percent_aid ~ info_arm * resp + second_home * resp, est)
+
+summary(m_M)   # X -> M
+summary(m_Y)   # M -> Y, the direct X -> Y edges (the dashed arrows), and X:M
+
+
+# ---- 4. ACME / ADE / total, one contrast at a time -------------------
+# The same two fitted models serve all three contrasts -- mediate() just
+# changes which exposure it perturbs. Resampling is by respondent, since
+# each contributes two vignettes.
+
+run_med <- function(treat, from, to, sims = 1000) {
+  set.seed(2026)
+  mediation::mediate(m_M, m_Y, treat = treat, mediator = "resp",
+                     control.value = from, treat.value = to,
+                     sims = sims, cluster = est$ResponseID)
 }
 
+med_X1 <- run_med("info_arm",    "none",    "info")         # info vs none
+med_X2 <- run_med("info_arm",    "info",    "info_adapt")   # adapt | info
+med_X3 <- run_med("second_home", "primary", "second")       # second home
 
-question_labels <- c(
-  "GovInsur"  = "Higher insurance cost in riskier areas",
-  "GovInsurA" = "Mandatory disaster insurance",
-  "GovInsurB" = "Public disaster insurance option",
-  "GovInsurC" = "Taxes make insurance affordable for all",
-  "GovInsurD" = "Taxes make insurance affordable for low-income",
-  "GovRole"   = "Restrict development in high-risk areas",
-  "GovRoleA"  = "Require disaster-resistant construction",
-  "GovRoleB"  = "Home buyouts",
-  "PostDisasterGovAllocate" = "Preferred way government should allocate post-disaster aid",
-  "PostDisasterGovUse"      = "Preferred way households should use post-disaster aid"
+summary(med_X1); summary(med_X2); summary(med_X3)
+
+tidy_med <- function(x, label) {
+  data.frame(
+    contrast = label,
+    ACME  = x$d.avg,    ACME_lo = x$d.avg.ci[1], ACME_hi = x$d.avg.ci[2],
+    ADE   = x$z.avg,    ADE_lo  = x$z.avg.ci[1], ADE_hi  = x$z.avg.ci[2],
+    Total = x$tau.coef, Tot_lo  = x$tau.ci[1],   Tot_hi  = x$tau.ci[2],
+    PropMed = x$n.avg,  row.names = NULL)
+}
+
+results <- bind_rows(
+  tidy_med(med_X1, "X1: prior info vs. none"),
+  tidy_med(med_X2, "X2: adaptation vs. prior info only"),
+  tidy_med(med_X3, "X3: second home vs. primary"))
+
+print(results, digits = 3)
+
+
+# ---- 5. Sensitivity to U (the grey box) ------------------------------
+# medsens needs the no-interaction outcome model, so fit a parallel pair.
+# It reports the M-Y error correlation rho at which the ACME hits zero.
+
+m_Y_ni <- lm(as.formula(paste("percent_aid ~ info_arm + second_home + resp +",
+                              rhs)), est)
+
+set.seed(2026)
+med_X3_ni <- mediate(m_M, m_Y_ni, treat = "info_arm", mediator = "resp",
+                     control.value = "primary", treat.value = "second",
+                     sims = 1000)
+
+sens <- medsens(med_X3_ni, rho.by = 0.05, effect.type = "indirect")
+summary(sens)
+plot(sens, sens.par = "rho")
+
+
+# ---- 6. Respondent fixed effects, as within-pair differences ---------
+# Two vignettes per respondent, so demeaning within ResponseID removes any U
+# that shifts a respondent's LEVEL of responsibility and aid. W drops out --
+# that is the point of the spec, not an omission.
+
+dw <- est %>%
+  group_by(ResponseID) %>% filter(n() == 2) %>%
+  mutate(resp_w = resp - mean(resp),
+         aid_w  = percent_aid - mean(percent_aid)) %>%
+  ungroup() %>% as.data.frame()
+
+# Note: hazard varies WITHIN respondent, so demeaning does not absorb it.
+# Leaving it out here puts the fire-vs-flood contrast into the residual.
+m_M_fe <- lm(resp_w ~ info_arm + second_home, dw)
+m_Y_fe <- lm(aid_w ~ info_arm * resp_w + second_home * resp_w, dw)
+
+set.seed(2026)
+med_X3_fe <- mediate(m_M_fe, m_Y_fe, treat = "second_home", mediator = "resp_w",
+                     control.value = "primary", treat.value = "second",
+                     sims = 1000, cluster = dw$ResponseID)
+summary(med_X3_fe) # THIS TABLE IS IN SI
+
+
+# ---- 7. Are the post-treatment covariates unmoved by treatment? ------
+# Party / GovTrust / tax progressivity are asked after the vignettes. Putting
+# them in W is fine only if treatment did not move them -- test it before
+# claiming it, then re-run sections 3-4 with W extended.
+#
+# Two separate tests. The vignette cells vary WITHIN respondent, so they are
+# an unlikely source of trouble. The real exposure is `Treated`, the
+# between-respondent information arm, which precedes the end-of-survey block
+# and could plausibly move stated trust in government or tax preferences.
+
+bal <- function(v, rhs) {
+  f <- summary(lm(as.formula(paste0("as.numeric(as.factor(", v, ")) ~ ", rhs)),
+                  data = hyp))$fstatistic
+  data.frame(covariate = v, on = rhs,
+             p_joint = pf(f[1], f[2], f[3], lower.tail = FALSE),
+             row.names = NULL)
+}
+
+vars <- c("Party", "GovTrustBin", "gap_quartile", "RiskAversion_bin")
+
+bind_rows(
+  lapply(vars, bal, rhs = "info_arm + second_home"),   # vignette cells
+  lapply(vars, bal, rhs = "Treated")                   # information arm
 )
 
-nature_theme <- function() {
-  theme_minimal() +
-    theme(
-      text = element_text(family = "Arial", colour = "black"),
-      plot.title    = element_text(size = 12, face = "bold", hjust = 0),
-      plot.subtitle = element_text(size = 10, colour = "grey40"),
-      axis.title    = element_text(size = 10, face = "bold"),
-      axis.text     = element_text(size = 9,  colour = "black"),
-      legend.title  = element_text(size = 10, face = "bold"),
-      legend.text   = element_text(size = 9),
-      panel.grid.major = element_line(colour = "grey90", size = 0.3),
-      panel.grid.minor = element_blank(),
-      panel.border     = element_rect(colour = "black", fill = NA, size = 0.5),
-      legend.position  = "bottom",
-      legend.box       = "horizontal",
-      plot.margin      = margin(10, 10, 10, 10)
-    )
-}
-nature_colors <- c("#E31A1C", "#1F78B4", "#33A02C", "#FF7F00", "#6A3D9A", "#B15928","pink2")
+# W <- c(W, "Party", "RiskAversion_bin", "GovTrustBin", "gap_quartile")
 
-regression_data <- hyp %>%
-  mutate(
-    # set reference levels
-    Party              = fct_relevel(factor(Party), "Independent"),
-    GovTrustBin        = fct_relevel(factor(GovTrustBin), "Low government trust"),
-    RiskAversion_bin         = fct_relevel(factor(RiskAversion_bin), "Risk neutral"),
-    DisasterExperience = fct_relevel(factor(DisasterExperience), "0"),
-    gap_quartile = fct_relevel(
-      factor(gap_quartile,
-             levels = c("Mid-range tax progressive",
-                        "Least tax progressive",
-                        "Most tax progressive")),
-      "Mid-range tax progressive"
-    )
-  ) %>%
-  filter(
-    !is.na(Party),
-    !is.na(gap_quartile),
-    !is.na(DisasterExperience),
-    !is.na(RiskAversion_bin),
-    !is.na(GovTrustBin)
-  )
+# FIGURES --------------------------------------------------------
+
+library(dplyr)
+library(ggplot2)
+library(sandwich)
+
+LAB <- c(X1 = "X1 Prior info only\nvs. baseline",
+         X2 = "X2  Prior info + adaptation\nvs. prior info only",
+         X3 = "X3  Second home\nvs. primary residence")
 
 
-# Separate Likert-scale from categorical choice variables
-likert_vars <- c("GovRole", "GovRoleA", "GovRoleB", "GovInsur", "GovInsurA", 
-                 "GovInsurB", "GovInsurC", "GovInsurD")
-choice_vars <- c("PostDisasterGovAllocate", "PostDisasterGovUse")
 
-existing_likert <- likert_vars[likert_vars %in% names(regression_data)]
-existing_choice <- choice_vars[choice_vars %in% names(regression_data)]
+# ---- Fig 1: decomposition -------------------------------------------
+# One row per quantity, three panels. The eye should land on the fact
+# that ACME dominates for X1/X2 and ADE dominates for X3.
 
-# Convert Likert-scale variables to ordered factors
-likert_levels <- c("Strongly disagree", "Disagree", "Neither agreenor disagree", 
-                   "Agree", "Strongly agree")
-
-for (var in existing_likert) {
-  if (is.character(regression_data[[var]])) {
-    regression_data[[var]] <- factor(regression_data[[var]], 
-                                     levels = likert_levels, 
-                                     ordered = TRUE)
-    cat("Converted", var, "to ordered factor\n")
-  }
+pull_long <- function(x, label) {
+  data.frame(
+    contrast = label,
+    quantity = c("Total effect", "Direct (ADE)", "Mediated (ACME)"),
+    est = c(x$tau.coef,  x$z.avg,       x$d.avg),
+    lo  = c(x$tau.ci[1], x$z.avg.ci[1], x$d.avg.ci[1]),
+    hi  = c(x$tau.ci[2], x$z.avg.ci[2], x$d.avg.ci[2]),
+    pm  = c(NA,          NA,            x$n.avg),
+    row.names = NULL)
 }
 
-cat("Likert-scale variables to analyze:", paste(existing_likert, collapse = ", "), "\n")
-cat("Choice variables to analyze:", paste(existing_choice, collapse = ", "), "\n\n")
+dec <- bind_rows(pull_long(med_X1, LAB["X1"]),
+                 pull_long(med_X2, LAB["X2"]),
+                 pull_long(med_X3, LAB["X3"]))
 
-# Run ordinal regression
 
-regression_data <- regression_data %>%
-  mutate(
-    Party = fct_relevel(Party, "Independent"),   
-    DisasterExperience = fct_relevel(DisasterExperience, "0"),
-    GovTrustBin = fct_relevel(GovTrustBin, "Low government trust"),
-    RiskAversion_bin = fct_relevel(RiskAversion_bin, "Risk neutral"),
-    gap_quartile = fct_relevel(gap_quartile, "Mid-range tax progressive")
+strip_lab <- dec %>%
+  filter(!is.na(pm)) %>%
+  transmute(contrast,
+            strip = sprintf("%s   \u00b7   %.0f%% via responsibility",
+                            gsub("\n", " ", contrast), 100 * pm))
+
+dec <- dec %>%
+  left_join(strip_lab, by = "contrast") %>%
+  mutate(strip = factor(strip, levels = strip_lab$strip),
+         quantity = factor(quantity,
+                           levels = c("Total effect", "Direct (ADE)", "Mediated (ACME)")))
+
+PAL <- c("Mediated (ACME)" = "#2C5F8A",   # the channel the paper is about
+         "Direct (ADE)"    = "#9AA5AE",   # everything else
+         "Total effect"    = "#1A1A1A")
+
+
+fig_med <- ggplot(dec, aes(x = est, y = quantity, colour = quantity)) +
+  geom_vline(xintercept = 0, linewidth = 0.4, colour = "grey55") +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 1.1,
+                 alpha = 0.85, show.legend = FALSE) +
+  geom_point(size = 2.9, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%+.1f", est)),
+            vjust = -1.25, size = 3.1, fontface = "bold",
+            show.legend = FALSE) +
+  scale_colour_manual(values = PAL) +
+  scale_x_continuous(expand = expansion(mult = 0.12)) +
+  scale_y_discrete(expand = expansion(add = 0.75)) +
+  facet_wrap(~ strip, ncol = 1) +
+  labs(x = "Effect on recommended aid",
+       y = NULL,
+       caption = paste("Points are posterior means with 95% quasi-Bayesian",
+                       "intervals; 1,000 draws, n = 3,922 vignettes.",
+                       "\nMediated + direct sum to the total effect.")) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor   = element_blank(),
+    panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.3),
+    panel.spacing      = unit(1.1, "lines"),
+    strip.text         = element_text(hjust = 0, face = "bold", size = 10.5,
+                                      margin = margin(b = 6)),
+    axis.text.y        = element_text(colour = "grey20", size = 9.8),
+    axis.title.x       = element_text(margin = margin(t = 10), size = 9.8),
+    plot.caption       = element_text(hjust = 0, colour = "grey45", size = 8,
+                                      margin = margin(t = 12)),
+    plot.margin        = margin(12, 16, 10, 12)
   )
 
-
-cat("ORDINAL LOGISTIC REGRESSION RESULTS\n")
-cat(rep("=", 80), "\n")
-
-ordinal_results <- list()
-for (var in existing_likert) {
-  cat("\n=== ANALYZING:", var, "===\n")
-  
-  # Check if variable exists and has data
-  if(!var %in% names(regression_data)) {
-    cat("ERROR: Variable", var, "not found in data\n")
-    next
-  }
-  
-  # Check variable class and values
-  cat("Variable class:", class(regression_data[[var]]), "\n")
-  cat("Is factor:", is.factor(regression_data[[var]]), "\n")
-  cat("Is ordered:", is.ordered(regression_data[[var]]), "\n")
-  
-  var_table <- table(regression_data[[var]], useNA = "ifany")
-  cat("Response distribution:\n")
-  print(var_table)
-  
-  if (length(var_table) < 3) {
-    cat("SKIPPING - insufficient variation\n")
-    next
-  }
-  cat("Running regression...\n")
-  result <- run_ordinal_regression(var, regression_data)
-  
-  if (!is.null(result)) {
-    ordinal_results[[var]] <- result
-    cat("SUCCESS - model created\n")
-  } else {
-    cat("FAILED - see error above\n")
-  }
-}
-
-# Function to create figure 
-create_policy_plot <- function(ordinal_results, question_labels,
-                               groups_to_plot = c("RiskAversion_bin", "gap_quartile", "DisasterExperience")) {
-  library(dplyr); library(stringr); library(ggplot2)
-  
-  coef_data <- data.frame()
-  
-  # Map model coefficients back to human-readable “Group” labels
-  group_map <- c(
-    "RiskAversion_bin"     = "Risk\ntolerance",
-    "gap_quartile"         = "Tax\nprogressivity",
-    "DisasterExperience"   = "Disaster\nexperience",
-    "GovTrustBin"          = "Government\ntrust",
-    "Party"                = "Party"
-  )
-  
-  # prefixes we want to keep in the coefficient table
-  var_prefixes <- c("Party", "DisasterExperience", "GovTrustBin", "RiskAversion_bin", "gap_quartile")
-  
-  model_categories <- c(
-    "GovRole"   = "Government\nMandates",
-    "GovRoleA"  = "Government\nMandates",
-    "GovInsurA" = "Government\nMandates",
-    "GovInsur"  = "Market\nMechanisms",
-    "GovInsurB" = "Market\nMechanisms",
-    "GovRoleB"  = "Public\nSubsidy",
-    "GovInsurC" = "Public\nSubsidy",
-    "GovInsurD" = "Public\nSubsidy"
-  )
-  
-  for (m in names(ordinal_results)) {
-    res <- ordinal_results[[m]]$results
-    if (is.null(res) || !nrow(res)) next
-    
-    keep <- grepl(paste(var_prefixes, collapse = "|"), res$Variable)
-    res  <- res[keep, , drop = FALSE]
-    if (!nrow(res)) next
-    
-    res$Question   <- question_labels[[m]]
-    res$Model_Name <- m
-    res$Category   <- unname(model_categories[m])
-    
-    res$Predictor_Clean <- dplyr::recode(
-      res$Variable,
-      PartyRepublican                        = "Republican",
-      PartyDemocrat                          = "Democrat",
-      DisasterExperience1                    = "Disaster experience",
-      `GovTrustBinHigh government trust`     = "High gov trust",
-      `RiskAversion_binRisk tolerant`        = "Risk tolerant",
-      `RiskAversion_binRisk averse`          = "Risk averse",
-      `gap_quartileMost tax progressive`     = "Most tax progressive",
-      `gap_quartileLeast tax progressive`    = "Least tax progressive",
-      .default = res$Variable
-    )
-    
-    coef_data <- dplyr::bind_rows(coef_data, res)
-  }
-  
-  # Order questions within categories
-  model_order <- c("GovRole","GovRoleA","GovInsurA","GovInsur","GovInsurB","GovRoleB","GovInsurC","GovInsurD")
-  ordered_labels <- sapply(model_order, function(x) question_labels[[x]])
-  coef_data$Question_Wrapped <- stringr::str_wrap(coef_data$Question, width = 20)
-  ordered_labels_wrapped     <- stringr::str_wrap(ordered_labels, width = 20)
-  coef_data$Question_Wrapped <- factor(coef_data$Question_Wrapped, levels = ordered_labels_wrapped)
-  
-  coef_data$Category <- factor(
-    coef_data$Category,
-    levels = c("Government\nMandates", "Market\nMechanisms", "Public\nSubsidy")
-  )
-  
-  # Assign each coefficient to a “Group” based on its variable prefix
-  coef_data <- coef_data %>%
-    mutate(
-      Group = case_when(
-        grepl("^RiskAversion_bin", Variable)     ~ group_map["RiskAversion_bin"],
-        grepl("^gap_quartile", Variable)         ~ group_map["gap_quartile"],
-        grepl("^DisasterExperience", Variable)   ~ group_map["DisasterExperience"],
-        grepl("^GovTrustBin", Variable)          ~ group_map["GovTrustBin"],
-        grepl("^Party", Variable)                ~ group_map["Party"],
-        TRUE ~ NA_character_
-      )
-    ) %>%
-    filter(!is.na(Group)) %>%
-    filter(Group %in% unname(group_map[groups_to_plot]))
-  
-  # Palette: keep your existing colors + add party & trust
-  pal <- c(
-    # Risk
-    "Risk neutral"           = "blue2",
-    "Risk tolerant"          = "#6baed6",
-    "Risk averse"            = "blue4",
-    # Tax
-    "Least tax progressive"  = "chartreuse3",
-    "Mid-range tax progressive" = "#74c476",
-    "Most tax progressive"   = "forestgreen",
-    # Disaster
-    "No disaster experience" = "#dadaeb",
-    "Disaster experience"    = "purple",
-    # Gov trust
-    "High gov trust"         = "#e7298a",
-    # Party
-    "Democrat"               = "#d95f02",
-    "Republican"             = "#fdae6b"
-  )
-  
-  # Ensure predictor levels don’t drop unpredictably
-  coef_data <- coef_data %>%
-    mutate(Predictor_Clean = factor(Predictor_Clean, levels = names(pal)))
-  
-  ggplot(coef_data,
-         aes(x = Question_Wrapped, y = Coefficient,
-             colour = Predictor_Clean, group = Predictor_Clean)) +
-    geom_hline(yintercept = 0, linetype = "dashed", alpha = .7) +
-    geom_line(size = 1.5, alpha = .8) +
-    geom_point(size = 4, alpha = .95) +
-    geom_errorbar(aes(ymin = Coefficient - 1.96*SE,
-                      ymax = Coefficient + 1.96*SE),
-                  width = .3, alpha = .75) +
-    facet_grid(Group ~ Category, scales = "free_x", space = "free_x") +
-    scale_color_manual(values = pal, drop = TRUE) +
-    labs(x = "",
-         y = "Log-odds coefficient",
-         caption = "Note: Coefficient of 0 = no effect; >0 = increased odds of higher support; <0 = decreased odds") +
-    nature_theme() +
-    theme(
-      axis.text.x      = element_text(angle = 45, hjust = 1, size = 16),
-      axis.title.y     = element_text(size = 16),
-      axis.text.y      = element_text(size = 16),
-      strip.text       = element_text(face = "bold", size = 14),
-      strip.background = element_rect(fill = "grey90", colour = "white"),
-      legend.title     = element_blank(),
-      legend.text      = element_text(size = 16),
-      legend.key.size  = unit(1.2, "lines"),
-      plot.caption     = element_text(hjust = 0, size = 14, color = "gray30", margin = margin(t = 10))
-    )
-}
-
-policy_plot<- create_policy_plot(
-  ordinal_results = ordinal_results,
-  question_labels = question_labels,
-  groups_to_plot  = c("Party", "GovTrustBin")
-)
-
-print(policy_plot)
-
-ggsave("C:/Users/indumati/Box/Disaster aid survey/EDA Figures/Fairness paper figures/fig_policies.png",  plot = policy_plot, width = 12, height = 8, dpi = 300)
+fig_med
+# ggsave("Figures/Mediation/mediation.png", fig1,
+#        width = 6.8, height = 6.4, dpi = 300, bg = "white")

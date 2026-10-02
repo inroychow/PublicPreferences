@@ -1,0 +1,322 @@
+\begin{table}[!h]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.1}
+\hspace*{-3cm}
+\begin{tabular}[t]{>{\raggedright\arraybackslash}p{6.4cm}ccc}
+\toprule
+\multicolumn{1}{c}{ } & \multicolumn{3}{c}{OR (SE)} \\
+\cmidrule(l{3pt}r{3pt}){2-4}
+\multicolumn{4}{l}{\textbf{Government Mandates}} \\
+\cmidrule(l{3pt}r{3pt}){1-4}
+Predictor & Restrict development in high-risk areas & Require disaster-resistant construction & Mandatory disaster insurance \\
+\midrule
+$GovRole
+$GovRole$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                      -0.10904644                        0.09476953                       -0.53153016                       -0.08417829 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                       0.21987650                        0.29781267                        0.40677556                       -0.33834569 
+ gap_quartileMost tax progressive 
+                      -0.10128591 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -3.4727199                         -1.9774482                         -0.4398899                          1.7005360 
+
+Residual Deviance: 5151.462 
+AIC: 5177.462 
+
+$GovRole$results
+                                                             Variable Coefficient         SE     t_value         OR   CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1 -0.10904644 0.09075814  -1.2015059 0.89668877 0.75056247 1.07126428
+PartyDemocrat                                           PartyDemocrat  0.09476953 0.11171237   0.8483352 1.09940545 0.88321492 1.36851442
+PartyOther                                                 PartyOther -0.53153016 0.28465138  -1.8673023 0.58770500 0.33640252 1.02673775
+PartyRepublican                                       PartyRepublican -0.08417829 0.10791246  -0.7800609 0.91926734 0.74402048 1.13579193
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant  0.21987650 0.10004872   2.1976942 1.24592284 1.02406602 1.51584341
+RiskAversion_binRisk averse               RiskAversion_binRisk averse  0.29781267 0.10508377   2.8340500 1.34690944 1.09619871 1.65496004
+GovTrustBinHigh government trust     GovTrustBinHigh government trust  0.40677556 0.10757552   3.7813024 1.50196696 1.21643876 1.85451567
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive -0.33834569 0.10292178  -3.2874062 0.71294879 0.58270608 0.87230250
+gap_quartileMost tax progressive     gap_quartileMost tax progressive -0.10128591 0.10316322  -0.9818025 0.90367462 0.73824035 1.10618151
+Strongly disagree|Disagree                 Strongly disagree|Disagree -3.47271990 0.16721218 -20.7683433 0.03103251 0.02236058 0.04306761
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree -1.97744817 0.12134258 -16.2964079 0.13842202 0.10912300 0.17558769
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree -0.43988985 0.10926258  -4.0259882 0.64410737 0.51993862 0.79792937
+Agree|Strongly agree                             Agree|Strongly agree  1.70053597 0.11717699  14.5125419 5.47688205 4.35301658 6.89090805
+                                        p_value sig
+DisasterExperience1                2.295550e-01    
+PartyDemocrat                      3.962513e-01    
+PartyOther                         6.185939e-02   .
+PartyRepublican                    4.353550e-01    
+RiskAversion_binRisk tolerant      2.797091e-02   *
+RiskAversion_binRisk averse        4.596214e-03  **
+GovTrustBinHigh government trust   1.560100e-04 ***
+gap_quartileLeast tax progressive  1.011149e-03  **
+gap_quartileMost tax progressive   3.261971e-01    
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 0.000000e+00 ***
+Neither agreenor disagree|Agree    5.673654e-05 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+$GovRoleA
+$GovRoleA$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                        0.2326221                         0.3442845                        -0.1981225                        -0.1523000 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                        0.1740527                         0.6180680                         0.3136778                        -0.2281716 
+ gap_quartileMost tax progressive 
+                        0.1047245 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -3.7613440                         -2.2051604                         -0.6204842                          1.7351422 
+
+Residual Deviance: 4724.552 
+AIC: 4750.552 
+
+$GovRoleA$results
+                                                             Variable Coefficient         SE     t_value         OR   CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1   0.2326221 0.09329484   2.4934075 1.26190447 1.05102320 1.51509775
+PartyDemocrat                                           PartyDemocrat   0.3442845 0.11429804   3.0121641 1.41097994 1.12779037 1.76527877
+PartyOther                                                 PartyOther  -0.1981225 0.29565223  -0.6701199 0.82026940 0.45950713 1.46426867
+PartyRepublican                                       PartyRepublican  -0.1523000 0.10951607  -1.3906639 0.85873058 0.69284321 1.06433635
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant   0.1740527 0.10207006   1.7052274 1.19011824 0.97433055 1.45369702
+RiskAversion_binRisk averse               RiskAversion_binRisk averse   0.6180680 0.10861817   5.6902820 1.85534006 1.49956699 2.29552048
+GovTrustBinHigh government trust     GovTrustBinHigh government trust   0.3136778 0.10901345   2.8774233 1.36844880 1.10518360 1.69442625
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive  -0.2281716 0.10557483  -2.1612315 0.79598762 0.64720104 0.97897910
+gap_quartileMost tax progressive     gap_quartileMost tax progressive   0.1047245 0.10596183   0.9883224 1.11040461 0.90216240 1.36671446
+Strongly disagree|Disagree                 Strongly disagree|Disagree  -3.7613440 0.20131662 -18.6837232 0.02325247 0.01567130 0.03450112
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree  -2.2051604 0.13046281 -16.9025977 0.11023284 0.08536086 0.14235187
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree  -0.6204842 0.11049819  -5.6153335 0.53768404 0.43298135 0.66770573
+Agree|Strongly agree                             Agree|Strongly agree   1.7351422 0.11809359  14.6929414 5.66973395 4.49820648 7.14637782
+                                        p_value sig
+DisasterExperience1                1.265235e-02   *
+PartyDemocrat                      2.593924e-03  **
+PartyOther                         5.027813e-01    
+PartyRepublican                    1.643274e-01    
+RiskAversion_binRisk tolerant      8.815203e-02   .
+RiskAversion_binRisk averse        1.268297e-08 ***
+GovTrustBinHigh government trust   4.009374e-03  **
+gap_quartileLeast tax progressive  3.067746e-02   *
+gap_quartileMost tax progressive   3.229948e-01    
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 0.000000e+00 ***
+Neither agreenor disagree|Agree    1.961835e-08 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+$GovRoleB
+$GovRoleB$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                       0.34834261                        0.36743331                        0.29359518                       -0.20931065 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                      -0.08533257                        0.66346086                        0.66688943                        0.03179561 
+ gap_quartileMost tax progressive 
+                       0.28249428 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -1.7052155                         -0.2649454                          1.2281116                          2.9030444 
+
+Residual Deviance: 5722.361 
+AIC: 5748.361 
+
+$GovRoleB$results
+                                                             Variable Coefficient         SE     t_value         OR   CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1  0.34834261 0.08949174   3.8924554  1.4167176  1.1887933  1.6883411
+PartyDemocrat                                           PartyDemocrat  0.36743331 0.10844213   3.3882894  1.4440235  1.1675257  1.7860025
+PartyOther                                                 PartyOther  0.29359518 0.28229510   1.0400293  1.3412408  0.7712805  2.3323902
+PartyRepublican                                       PartyRepublican -0.20931065 0.10555541  -1.9829456  0.8111432  0.6595488  0.9975809
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant -0.08533257 0.09655756  -0.8837482  0.9182069  0.7598871  1.1095120
+RiskAversion_binRisk averse               RiskAversion_binRisk averse  0.66346086 0.10501959   6.3174960  1.9415000  1.5803122  2.3852388
+GovTrustBinHigh government trust     GovTrustBinHigh government trust  0.66688943 0.10546344   6.3234184  1.9481680  1.5843609  2.3955138
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive  0.03179561 0.10074977   0.3155899  1.0323065  0.8473225  1.2576755
+gap_quartileMost tax progressive     gap_quartileMost tax progressive  0.28249428 0.10080217   2.8024622  1.3264342  1.0886322  1.6161819
+Strongly disagree|Disagree                 Strongly disagree|Disagree -1.70521546 0.11901583 -14.3276363  0.1817332  0.1439216  0.2294788
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree -0.26494540 0.10607586  -2.4976974  0.7672478  0.6232210  0.9445594
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree  1.22811158 0.10955667  11.2098293  3.4147749  2.7548982  4.2327109
+Agree|Strongly agree                             Agree|Strongly agree  2.90304437 0.13018622  22.2991682 18.2295584 14.1240551 23.5284271
+                                        p_value sig
+DisasterExperience1                9.923477e-05 ***
+PartyDemocrat                      7.033003e-04 ***
+PartyOther                         2.983263e-01    
+PartyRepublican                    4.737350e-02   *
+RiskAversion_binRisk tolerant      3.768322e-01    
+RiskAversion_binRisk averse        2.658354e-10 ***
+GovTrustBinHigh government trust   2.558393e-10 ***
+gap_quartileLeast tax progressive  7.523138e-01    
+gap_quartileMost tax progressive   5.071417e-03  **
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 1.250028e-02   *
+Neither agreenor disagree|Agree    0.000000e+00 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+$GovInsur
+$GovInsur$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                      -0.27904674                       -0.12972379                       -0.71445581                        0.08060558 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                       0.15452011                        0.49082309                        0.25529633                       -0.28699149 
+ gap_quartileMost tax progressive 
+                       0.04384644 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -3.6768659                         -2.1159763                         -0.9672224                          1.4296885 
+
+Residual Deviance: 4868.882 
+AIC: 4894.882 
+
+$GovInsur$results
+                                                             Variable Coefficient         SE     t_value         OR   CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1 -0.27904674 0.09290666  -3.0035170 0.75650454 0.63056200 0.90760167
+PartyDemocrat                                           PartyDemocrat -0.12972379 0.11369901  -1.1409403 0.87833801 0.70287666 1.09760033
+PartyOther                                                 PartyOther -0.71445581 0.28810671  -2.4798305 0.48945840 0.27827514 0.86090884
+PartyRepublican                                       PartyRepublican  0.08060558 0.11026366   0.7310258 1.08394329 0.87326939 1.34544169
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant  0.15452011 0.10183411   1.5173708 1.16709775 0.95592602 1.42491901
+RiskAversion_binRisk averse               RiskAversion_binRisk averse  0.49082309 0.10878963   4.5116717 1.63366031 1.31995206 2.02192649
+GovTrustBinHigh government trust     GovTrustBinHigh government trust  0.25529633 0.10886787   2.3450109 1.29084409 1.04280617 1.59787937
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive -0.28699149 0.10542421  -2.7222542 0.75051812 0.61041091 0.92278405
+gap_quartileMost tax progressive     gap_quartileMost tax progressive  0.04384644 0.10559485   0.4152328 1.04482190 0.84948969 1.28506893
+Strongly disagree|Disagree                 Strongly disagree|Disagree -3.67686587 0.17764922 -20.6973371 0.02530215 0.01786238 0.03584062
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree -2.11597634 0.12421192 -17.0352112 0.12051557 0.09447390 0.15373561
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree -0.96722240 0.11211740  -8.6268711 0.38013744 0.30514368 0.47356207
+Agree|Strongly agree                             Agree|Strongly agree  1.42968851 0.11580137  12.3460411 4.17739777 3.32915267 5.24176985
+                                        p_value sig
+DisasterExperience1                2.668787e-03  **
+PartyDemocrat                      2.538948e-01    
+PartyOther                         1.314448e-02   *
+PartyRepublican                    4.647634e-01    
+RiskAversion_binRisk tolerant      1.291731e-01    
+RiskAversion_binRisk averse        6.431870e-06 ***
+GovTrustBinHigh government trust   1.902652e-02   *
+gap_quartileLeast tax progressive  6.483825e-03  **
+gap_quartileMost tax progressive   6.779715e-01    
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 0.000000e+00 ***
+Neither agreenor disagree|Agree    0.000000e+00 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+$GovInsurA
+$GovInsurA$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                       0.14795845                        0.35909263                        0.51167886                       -0.06649676 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                      -0.21367902                        0.60445525                        0.66986870                        0.02759417 
+ gap_quartileMost tax progressive 
+                       0.21951726 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -2.5385917                         -0.7056612                          0.7552448                          2.6719437 
+
+Residual Deviance: 5514.741 
+AIC: 5540.741 
+
+$GovInsurA$results
+                                                             Variable Coefficient         SE     t_value          OR    CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1  0.14795845 0.08940441   1.6549345  1.15946472  0.97309438  1.3815293
+PartyDemocrat                                           PartyDemocrat  0.35909263 0.10873451   3.3024717  1.43202945  1.15716494  1.7721833
+PartyOther                                                 PartyOther  0.51167886 0.28931553   1.7685842  1.66808934  0.94612596  2.9409636
+PartyRepublican                                       PartyRepublican -0.06649676 0.10597763  -0.6274604  0.93566594  0.76017020  1.1516773
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant -0.21367902 0.09795951  -2.1812994  0.80760757  0.66652365  0.9785549
+RiskAversion_binRisk averse               RiskAversion_binRisk averse  0.60445525 0.10457587   5.7800641  1.83025490  1.49105890  2.2466135
+GovTrustBinHigh government trust     GovTrustBinHigh government trust  0.66986870 0.10507240   6.3753058  1.95398076  1.59030654  2.4008207
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive  0.02759417 0.10063177   0.2742093  1.02797841  0.84396513  1.2521129
+gap_quartileMost tax progressive     gap_quartileMost tax progressive  0.21951726 0.10157719   2.1610881  1.24547535  1.02063600  1.5198453
+Strongly disagree|Disagree                 Strongly disagree|Disagree -2.53859167 0.13872554 -18.2993817  0.07897755  0.06017527  0.1036548
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree -0.70566122 0.10834041  -6.5133705  0.49378197  0.39931351  0.6105995
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree  0.75524478 0.10810369   6.9862998  2.12813239  1.72178501  2.6303792
+Agree|Strongly agree                             Agree|Strongly agree  2.67194370 0.12733041  20.9843323 14.46806343 11.27261224 18.5693302
+                                        p_value sig
+DisasterExperience1                9.793778e-02   .
+PartyDemocrat                      9.583675e-04 ***
+PartyOther                         7.696329e-02   .
+PartyRepublican                    5.303575e-01    
+RiskAversion_binRisk tolerant      2.916128e-02   *
+RiskAversion_binRisk averse        7.467216e-09 ***
+GovTrustBinHigh government trust   1.825982e-10 ***
+gap_quartileLeast tax progressive  7.839238e-01    
+gap_quartileMost tax progressive   3.068854e-02   *
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 7.348300e-11 ***
+Neither agreenor disagree|Agree    2.822409e-12 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+$GovInsurB
+$GovInsurB$model
+Call:
+polr(formula = as.formula(formula_str), data = data, Hess = TRUE)
+
+Coefficients:
+              DisasterExperience1                     PartyDemocrat                        PartyOther                   PartyRepublican 
+                        0.1643307                         0.3990641                        -0.4074339                        -0.2554823 
+    RiskAversion_binRisk tolerant       RiskAversion_binRisk averse  GovTrustBinHigh government trust gap_quartileLeast tax progressive 
+                        0.2317201                         0.5227235                         0.2757542                        -0.2786875 
+ gap_quartileMost tax progressive 
+                        0.1643417 
+
+Intercepts:
+        Strongly disagree|Disagree Disagree|Neither agreenor disagree    Neither agreenor disagree|Agree               Agree|Strongly agree 
+                        -3.6884368                         -2.5690887                         -0.7855907                          1.7711959 
+
+Residual Deviance: 4500.376 
+AIC: 4526.376 
+
+$GovInsurB$results
+                                                             Variable Coefficient         SE    t_value         OR   CI_lower   CI_upper
+DisasterExperience1                               DisasterExperience1   0.1643307 0.09418633   1.744741 1.17860406 0.97992967 1.41755839
+PartyDemocrat                                           PartyDemocrat   0.3990641 0.11569713   3.449214 1.49042918 1.18803150 1.86979818
+PartyOther                                                 PartyOther  -0.4074339 0.29765931  -1.368793 0.66535542 0.37126241 1.19241222
+PartyRepublican                                       PartyRepublican  -0.2554823 0.11185543  -2.284040 0.77454285 0.62205987 0.96440336
+RiskAversion_binRisk tolerant           RiskAversion_binRisk tolerant   0.2317201 0.10341232   2.240739 1.26076674 1.02945744 1.54404904
+RiskAversion_binRisk averse               RiskAversion_binRisk averse   0.5227235 0.11043624   4.733260 1.68661484 1.35834688 2.09421440
+GovTrustBinHigh government trust     GovTrustBinHigh government trust   0.2757542 0.11084444   2.487758 1.31752393 1.06024400 1.63723569
+gap_quartileLeast tax progressive   gap_quartileLeast tax progressive  -0.2786875 0.10725766  -2.598300 0.75677633 0.61329296 0.93382845
+gap_quartileMost tax progressive     gap_quartileMost tax progressive   0.1643417 0.10652951   1.542687 1.17861696 0.95651754 1.45228694
+Strongly disagree|Disagree                 Strongly disagree|Disagree  -3.6884368 0.19258390 -19.152363 0.02501107 0.01714753 0.03648068
+Disagree|Neither agreenor disagree Disagree|Neither agreenor disagree  -2.5690887 0.14061006 -18.271016 0.07660533 0.05815262 0.10091336
+Neither agreenor disagree|Agree       Neither agreenor disagree|Agree  -0.7855907 0.11397256  -6.892805 0.45585037 0.36459181 0.56995125
+Agree|Strongly agree                             Agree|Strongly agree   1.7711959 0.12111244  14.624393 5.87787845 4.63583120 7.45269910
+                                        p_value sig
+DisasterExperience1                8.102999e-02   .
+PartyDemocrat                      5.622220e-04 ***
+PartyOther                         1.710641e-01    
+PartyRepublican                    2.236917e-02   *
+RiskAversion_binRisk tolerant      2.504296e-02   *
+RiskAversion_binRisk averse        2.209419e-06 ***
+GovTrustBinHigh government trust   1.285511e-02   *
+gap_quartileLeast tax progressive  9.368667e-03  **
+gap_quartileMost tax progressive   1.229067e-01    
+Strongly disagree|Disagree         0.000000e+00 ***
+Disagree|Neither agreenor disagree 0.000000e+00 ***
+Neither agreenor disagree|Agree    5.470291e-12 ***
+Agree|Strongly agree               0.000000e+00 ***
+
+
+
+

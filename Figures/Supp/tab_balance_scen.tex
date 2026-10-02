@@ -1,0 +1,55 @@
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{threeparttable}
+\caption{Covariate balance across the six vignette scenarios}
+\label{sitab:balancetable_scen}
+
+\begin{tabular}[t]{lrrrrrr}
+\toprule
+\multicolumn{1}{c}{ } & \multicolumn{3}{c}{Primary residence (\%)} & \multicolumn{3}{c}{Second home (\%)} \\
+\cmidrule(l{3pt}r{3pt}){2-4} \cmidrule(l{3pt}r{3pt}){5-7}
+Characteristic & Base & \makecell{Prior\\info} & \makecell{Prior info\\+ adapt} & Base & \makecell{Prior\\info} & \makecell{Prior info\\+ adapt}\\
+\midrule
+\multicolumn{7}{l}{\textit{Region}}\\
+\hspace{1em}Southeast & 29.6 & 28.0 & 29.2 & 31.0 & 30.2 & 30.0\\
+\hspace{1em}Midwest & 24.4 & 20.6 & 23.0 & 22.5 & 21.5 & 25.4\\
+\hspace{1em}West & 17.8 & 20.1 & 17.3 & 18.1 & 18.5 & 18.0\\
+\hspace{1em}Northeast & 17.4 & 18.1 & 17.8 & 16.4 & 16.6 & 15.7\\
+\hspace{1em}Southwest & 10.7 & 13.3 & 12.6 & 12.0 & 13.3 & 11.0\\
+\addlinespace[0.3em]
+\multicolumn{7}{l}{\textit{Household income}}\\
+\hspace{1em}\$75{,}000 or more & 62.9 & 64.5 & 62.4 & 60.9 & 63.0 & 64.5\\
+\hspace{1em}Less than \$50{,}000 & 21.7 & 21.9 & 23.2 & 23.3 & 22.5 & 21.8\\
+\hspace{1em}\$50{,}000--\$74{,}999 & 15.4 & 13.6 & 14.4 & 15.8 & 14.6 & 13.7\\
+\addlinespace[0.3em]
+\multicolumn{7}{l}{\textit{Age}}\\
+\hspace{1em}65 or older & 35.5 & 39.0 & 34.6 & 37.1 & 35.9 & 37.5\\
+\hspace{1em}45--64 & 36.6 & 31.2 & 33.2 & 33.8 & 32.5 & 31.4\\
+\hspace{1em}25--44 & 24.6 & 26.9 & 28.9 & 25.5 & 28.2 & 28.5\\
+\hspace{1em}18--24 & 3.3 & 3.0 & 3.3 & 3.6 & 3.4 & 2.6\\
+\addlinespace[0.3em]
+\multicolumn{7}{l}{\textit{Education}}\\
+\hspace{1em}Bachelor's or more & 50.7 & 50.6 & 49.2 & 49.9 & 52.5 & 50.2\\
+\hspace{1em}Some college & 28.2 & 29.9 & 32.7 & 28.6 & 26.2 & 28.3\\
+\hspace{1em}High school or less & 21.1 & 19.6 & 18.1 & 21.5 & 21.3 & 21.4\\
+\addlinespace[0.3em]
+\multicolumn{7}{l}{\textit{Race and ethnicity}}\\
+\hspace{1em}White{,} non-Hispanic & 72.4 & 70.5 & 71.1 & 74.9 & 71.6 & 68.4\\
+\hspace{1em}Black{,} non-Hispanic & 11.2 & 11.1 & 10.0 & 11.2 & 11.5 & 14.4\\
+\hspace{1em}Other/multiple{,} non-Hispanic & 9.7 & 9.0 & 10.0 & 8.2 & 10.5 & 9.2\\
+\hspace{1em}Hispanic (any race) & 6.7 & 9.5 & 9.0 & 5.7 & 6.4 & 8.0\\
+\addlinespace[0.3em]
+\multicolumn{7}{l}{\textit{Sex}}\\
+\hspace{1em}Male & 48.1 & 53.2 & 54.2 & 49.0 & 52.5 & 53.1\\
+\hspace{1em}Female & 51.9 & 46.8 & 45.8 & 51.0 & 47.5 & 46.9\\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}[flushleft]
+\footnotesize
+\item \textit{Notes:} Cells show the percentage of vignettes in each scenario with the given characteristic. Vignettes per cell, in column order: 877, 603, 612, 609, 610, 611. Respondents saw up to two vignettes. $p$-values are from Rao--Scott $F$ tests of independence between each characteristic and scenario assignment, clustered by respondent: region, $p = 0.79$; household income, $p = 0.94$; age, $p = 0.49$; education, $p = 0.41$; race and ethnicity, $p = 0.07$; sex, $p = 0.05$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
