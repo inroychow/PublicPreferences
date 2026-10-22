@@ -1042,7 +1042,7 @@ if (!"ResponseID" %in% names(sample) && "ResponseId" %in% names(sample)) sample$
 
 # benchmark: midpoint of the $5,000-$9,999 bin for a $75k loss
 BENCH_BIN        <- "$5,000 to $9,999"
-IHP_SHARE_ACTUAL <- 15   # % of loss covered by typical IHP grant (comparator)
+IHP_SHARE_ACTUAL <- 7   # % of loss covered by typical IHP grant (comparator)
 
 # analysis sample: one row per respondent, restricted to the vignette sample
 sample_trunc <- sample %>% filter(ResponseID %in% hyp$ResponseID)
@@ -1181,8 +1181,15 @@ sample_bel <- sample %>%
 
 stopifnot(!anyDuplicated(sample_bel$ResponseID))
 
-hyp2 <- hyp %>% left_join(sample_bel, by = "ResponseID")
-stopifnot(nrow(hyp2) == nrow(hyp))
+hyp2 <- hyp %>%
+  dplyr::select(-any_of(setdiff(names(sample_bel), "ResponseID"))) %>%
+  left_join(sample_bel, by = "ResponseID")
+
+stopifnot(
+  nrow(hyp2) == nrow(hyp),
+  !any(grepl("\\.(x|y)$", names(hyp2))),
+  !anyDuplicated(names(hyp2))
+)
 
 # ---- class fixes ------------------------------------------------------------
 est <- hyp2 %>%
@@ -1331,6 +1338,253 @@ recipients %>%
 
 cat("\n--- done ---\n")
 
+
+
+#####################################
+# =============================================================================
+# REVIEWER — does belief about current FEMA generosity predict recommended aid?
+#   Predictor is the belief itself, not its distance from any benchmark.
+# =============================================================================
+
+est <- est %>%
+  mutate(
+    belief_pct = 100 * Beliefs_FEMA_Amount / 75000,   # believed % of a $75k loss
+    belief_bin = factor(
+      if_else(not_sure == 1 | is.na(Beliefs_FEMA_Amount), "Not sure",
+              as.character(cut(belief_pct,
+                               breaks = c(-Inf, 7, 15, 40, Inf),
+                               labels = c("<7%", "7-15%", "15-40%", ">40%")))),
+      levels = c("<7%", "7-15%", "15-40%", ">40%", "Not sure"))
+  )
+
+cat("\n--- REVIEWER: belief distribution (respondent level) ---\n")
+est %>% distinct(ResponseID, .keep_all = TRUE) %>% count(belief_bin) %>%
+  mutate(share = round(100 * n / sum(n), 1)) %>% print()
+
+# continuous: does a higher believed award predict higher recommended aid?
+belief_model <- feols(
+  percent_aid ~ belief_pct +
+    second_home * info_arm +
+    DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+    Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+  data = est, vcov = ~ResponseID
+)
+
+belief_model2 <- feols(
+  percent_aid ~ belief_pct +
+    second_home * info_arm,
+  data = est, vcov = ~ResponseID
+)
+
+summary(belief_model)
+# (2) categorical: no linearity assumption, keeps "not sure" in the sample
+belief_model_bin <- update(belief_model, . ~ . - belief_pct + belief_bin)
+
+# (3) unbundles Table S8: FEMA-award belief net of the flood-insurance item
+belief_model_sep <- update(belief_model, . ~ . + k_flood)
+
+etable(belief_model, belief_model_bin, belief_model_sep,
+       keep = c("belief_pct", "belief_bin", "k_flood"), se.below = TRUE)
+
+b <- coef(belief_model)[["belief_pct"]]
+cat("\nA 10pp higher believed award shifts recommended aid by",
+    round(10 * b, 2), "pp\n")
+
+#Share of respondents recommending less than their own belief
+
+est <- est %>%
+  mutate(
+    belief_pct = if_else(not_sure == 1 | is.na(Beliefs_FEMA_Amount), NA_real_,
+                         pmin(100 * Beliefs_FEMA_Amount / 75000, 100)),  # winsorize at 100
+    overest_pp = belief_pct - 7   # same slope as belief_pct; matches reviewer's framing
+  )
+
+# Adjusted mean recommended aid by belief bin (key number: the accurate "<=7%" group)
+library(marginaleffects)
+
+avg_predictions(belief_model_bin, by = "belief_bin")
+
+# Within-person: recommended vs. believed current aid
+est %>%
+  filter(!is.na(belief_pct)) %>%
+  group_by(ResponseID) %>%
+  summarise(rec = mean(percent_aid), bel = first(belief_pct)) %>%
+  summarise(mean_rec_minus_bel = mean(rec - bel),
+            share_rec_below_bel = mean(rec < bel))
+
+# ----------------------------- OVEREST
+est <- est %>%
+  mutate(
+    overestimator = case_when(
+      not_sure == 1 | is.na(Beliefs_FEMA_Amount) ~ NA_integer_,
+      Beliefs_FEMA_Amount > 7500 ~ 1L,
+      TRUE ~ 0L
+    )
+  )
+
+overest_model <- feols(
+  percent_aid ~ overestimator + second_home * info_arm +
+    DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+    Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+  data = est, vcov = ~ResponseID
+)
+
+summary(overest_model)
+
+## How many not sure 
+
+# Respondent level: how many answered "not sure"?
+est %>%
+  distinct(ResponseID, .keep_all = TRUE) %>%
+  count(not_sure) %>%
+  mutate(share = round(100 * n / sum(n), 1))
+
+# Respondent level: "not sure" respondents who still have a dollar value
+# (these are what leaked into the uncorrected belief_model)
+est %>%
+  distinct(ResponseID, .keep_all = TRUE) %>%
+  count(not_sure, has_amount = !is.na(Beliefs_FEMA_Amount))
+
+# Respondent level: overestimator share among those who gave a belief
+# (the second [X]% in the paragraph; uses the corrected belief_pct)
+est %>%
+  distinct(ResponseID, .keep_all = TRUE) %>%
+  filter(!is.na(belief_pct)) %>%
+  count(overestimator) %>%
+  mutate(share = round(100 * n / sum(n), 1))
+
+
+not_sure_rows <- est %>% filter(not_sure == 1)
+
+nrow(not_sure_rows)                      # should be 640 (320 respondents × 2 scenarios)
+n_distinct(not_sure_rows$ResponseID)     # should be 320
+
+# What dollar values did "not sure" respondents get?
+not_sure_rows %>%
+  distinct(ResponseID, .keep_all = TRUE) %>%
+  count(Beliefs_FEMA_Amount, sort = TRUE)
+
+####
+
+est %>%
+  filter(!is.na(overestimator)) %>%
+  group_by(ResponseID, overestimator) %>%
+  summarise(rec = mean(percent_aid), .groups = "drop") %>%   # one value per respondent
+  group_by(overestimator) %>%
+  summarise(mean_rec = round(mean(rec), 1), n_respondents = n())
+
+# --- LaTeX table ------------------------------------------------------------
+library(fixest)
+library(dplyr)
+
+models <- list(belief_model, overest_model)
+n_resp <- function(m) n_distinct(est$ResponseID[obs(m)])
+
+# --- Row labels: run this, then map any scenario terms below ----------------
+all_terms <- union(names(coef(belief_model)), names(coef(overest_model)))
+print(all_terms)
+
+lab <- c(
+  "(Intercept)"   = "Constant",
+  "second_home"   = "Second home",
+  "belief_pct"    = "Believed FEMA award (\\% of loss)",
+  "overestimator" = "Overestimates FEMA award"
+  # fill in from print(all_terms), e.g.:
+  # "info_armInfo"              = "Prior risk information",
+  # "info_armAdapt"             = "Adaptive measures",
+  # "second_home:info_armInfo"  = "Second home $\\times$ Prior info",
+  # "second_home:info_armAdapt" = "Second home $\\times$ Adaptation"
+)
+
+# Same row order as the knowledge table: constant, scenario mains, belief, interactions
+arm_main   <- grep("^info_arm", all_terms, value = TRUE)
+arm_int    <- grep(":", all_terms, value = TRUE)
+show_terms <- c("(Intercept)", "belief_pct", "overestimator")
+# --- Cell formatting -------------------------------------------------------------
+stars <- function(p) ifelse(p < .001, "^{***}",
+                            ifelse(p < .01,  "^{**}",
+                                   ifelse(p < .05,  "^{*}", "")))
+
+cell <- function(m, term, d) {
+  ct <- coeftable(m)
+  if (!term %in% rownames(ct)) return(c("", ""))
+  c(sprintf("$%s%s$", formatC(ct[term, 1], format = "f", digits = d), stars(ct[term, 4])),
+    sprintf("(%s)",   formatC(ct[term, 2], format = "f", digits = d)))
+}
+
+row <- function(name, cells) sprintf("%-40s & %s \\\\", name, paste(cells, collapse = " & "))
+
+body <- unlist(lapply(show_terms, function(t) {
+  d     <- if (t == "belief_pct") 3 else 2      # keeps 0.074 from rounding to 0.07
+  cells <- sapply(models, cell, term = t, d = d)
+  name  <- if (t %in% names(lab)) lab[[t]] else t
+  c(row(name, cells[1, ]), row("", cells[2, ]))
+}))
+
+# --- Footer ------------------------------------------------------------------------
+rmse <- function(m) sqrt(mean(resid(m)^2))
+foot <- c(
+  "\\midrule",
+  row("Scenario cells",       c("Yes", "Yes")),
+  row("Demographic controls", c("Yes", "Yes")),
+  row("Observations", sapply(models, function(m) format(nobs(m), big.mark = ","))),
+  row("Respondents",  sapply(models, function(m) format(n_resp(m), big.mark = ","))),
+  row("RMSE",         sapply(models, function(m) sprintf("%.1f", rmse(m)))),
+  row("Adjusted $R^2$", sapply(models, function(m) sprintf("%.3f", unname(r2(m, "ar2")))))
+)
+
+# --- Assemble --------------------------------------------------------------------
+tex <- c(
+  "\\begin{table}[H]\\centering",
+  "\\caption{Recommended aid and beliefs about current FEMA generosity}\\label{sitab:fema_beliefs}",
+  "\\begin{tabular}{lcc}",
+  "\\toprule",
+  " & \\multicolumn{2}{c}{Recommended aid} \\\\",
+  "\\cmidrule(lr){2-3}",
+  " & (1) & (2) \\\\",
+  "\\midrule",
+  body,
+  foot,
+  "\\bottomrule",
+  "\\end{tabular}",
+  "\\begin{minipage}{0.85\\textwidth}\\footnotesize",
+  "\\vspace{2mm}",
+  paste("\\textit{Notes:} Beliefs are coded at the midpoint of each dollar category,",
+        "expressed as a share of a \\$75,000 loss, and top-coded at 100\\%.",
+        "Overestimators selected a category above \\$5,000--\\$9,999, the range containing",
+        "the median actual award. Respondents who answered ``not sure'' are excluded.",
+        "Standard errors clustered by respondent in parentheses.",
+        "$^{*}p<0.05$, $^{**}p<0.01$, $^{***}p<0.001$."),
+  "\\end{minipage}",
+  "\\end{table}"
+)
+
+writeLines(tex)                          # print to console
+writeLines(tex, "tab_fema_beliefs.tex")  # save for \input{}
+
+var_share <- function(full, belief_var) {
+  dat <- est[obs(full), ]                      # identical sample for every fit
+  reduced <- update(full, as.formula(paste(". ~ . -", belief_var)), data = dat)
+  alone   <- feols(as.formula(paste("percent_aid ~", belief_var)), data = dat)
+  
+  r2f <- unname(r2(full, "r2"))
+  r2r <- unname(r2(reduced, "r2"))
+  tibble(
+    belief_var     = belief_var,
+    r2_full        = round(r2f, 4),
+    incremental_r2 = round(r2f - r2r, 4),                  # share of total variance
+    partial_r2     = round((r2f - r2r) / (1 - r2r), 4),    # share of variance left after controls
+    share_of_expl  = round((r2f - r2r) / r2f, 3),          # share of what the model explains
+    r2_alone       = round(unname(r2(alone, "r2")), 4)     # belief with no other covariates
+  )
+}
+
+bind_rows(
+  var_share(belief_model,  "belief_pct"),
+  var_share(overest_model, "overestimator")
+)
+
+#####################################
 
 ### In interpreting these findings, one point to note is that most respondents are not well informed about current levels of disaster assistance. For instance, in answer to a separate question, respondents report believing the existing FEMA grant program would cover \$XX of a \$75,000 loss, well above the median 7\% (\$5,250) that an IHP grant provides for this size of loss \$YYYY. Even respondents that have experienced a disaster and applied for FEMA aid tend to systematically over-estimate current generosity of disaster aid. This echoes previous findings that disaster insurance and assistance programs are generally not well understood by the public. 
 
@@ -2073,7 +2327,7 @@ m_resp_simple_hazard <- feols(
 ) #resp controls:no hazard: yes
 
 etable(m_resp, m_resp_hazard, m_resp_simple, m_resp_simple_hazard)
-
+etable(m_resp, m_percaid)
 # PERCAID---
 m_percaid <- feols(
   percent_aid ~  info_arm * second_home + 
