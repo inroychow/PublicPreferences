@@ -62,7 +62,7 @@ ia %>%
     p99_loss   = quantile(verified_loss_2024, 0.99, na.rm = TRUE)
   ) # Mean loss is 8512 when we restrict to homeowners. 7819 when we do not.
 # ------------------------------------------------------------------------------------------------------------------------------
-#"When we restrict the IHP application data\footnote{We analyze the range of available data from 2002 to 2025. This is a total of 6,280,571 applicants.} to large-loss cases (reported losses above \$40{,}000), which better match our hypothetical vignette, grant coverage falls sharply. A large fraction of applicants (42\%) receive grants compensating less than 10\% of their disaster loss  \citep{FEMA2025_IHP_Registrations}."
+#"When we restrict the IHP application data\footnote{We analyze the range of available data from 2002 to 2025. This is a total of 6,280,571 applicants.} to large-loss cases (reported losses above \$40{,}000), which better match our hypothetical vignette, grant coverage falls sharply. Many (42\%) of applicants with large (>\$40,000) losses receive grants compensating less than 10\% \citep{FEMA2025_IHP_Registrations}."
 # ------------------------------------------------------------------------------------------------------------------------------
 
 library(data.table); library(dplyr); library(quantmod); library(lubridate)
@@ -99,6 +99,8 @@ large_loss       <- 40000   # 2024 dollars
 # }
 
 ## HA net of rental assistance 
+cpi_lookup <- setNames(cpi_year$cpi, cpi_year$year_decl)
+
 build_owners_noRA <- function(ho = c(0,1), fl = c(0,1)) {
   ia_raw |>
     filter(!is.na(rpfvl) | !is.na(ppfvl), ownRent == "O",
@@ -110,8 +112,8 @@ build_owners_noRA <- function(ho = c(0,1), fl = c(0,1)) {
       year_decl     = year(as.Date(sub("T.*$", "", declarationDate)))
     ) |>
     filter(verified_loss > 0, is.na(haAmount) | haAmount <= ha_cap) |>
-    left_join(cpi_year, by = "year_decl") |>
-    mutate(verified_loss_2024 = verified_loss * cpi_2024 / cpi,
+    mutate(cpi_y              = cpi_lookup[as.character(year_decl)],
+           verified_loss_2024 = verified_loss * cpi_2024 / cpi_y,
            comp_rate          = loss_award / verified_loss) |>
     filter(is.finite(comp_rate), comp_rate >= 0, !is.na(verified_loss_2024))
 }
@@ -124,7 +126,7 @@ summarise_large <- function(d) {
               share_lt_10 = mean(comp_rate < 0.10) * 100)
 }
 
-all <- build_owners_noRA(ho = c(0), fl = c(0))   # everyone regardless of insurance
+all <- build_owners_noRA()   # everyone regardless of insurance
 summarise_large(all)
 
 
@@ -706,7 +708,7 @@ schemes <- tribble(
   3,    7,     # main specification
   4,    7,
   4,    6      # narrowest neutral band
-)
+)f
 
 diff_h <- paste("`adaptive_measures:RiskAversion_binRisk averse` -",
                 "`adaptive_measures:RiskAversion_binRisk tolerant` = 0")

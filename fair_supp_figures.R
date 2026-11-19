@@ -19,7 +19,7 @@ head(sample)
 
 sample_keep <- sample %>%
   transmute(
-    ResponseID        = ResponseId,                     # note the case difference
+    ResponseID        = ResponseId,                   
     # field timing + effort
     StartDate         = as.POSIXct(StartDate,    tz = "UTC"),
     RecordedDate      = as.POSIXct(RecordedDate, tz = "UTC"),
@@ -34,7 +34,7 @@ sample_keep <- sample %>%
     # housing context
     YearHomePurchased, HomePurchasePrice,
     HasHomeownInsur, HasFloodPolicyHome, HasSepFloodPolicy, SFHA,
-    # data quality (reviewers on opt-in panels ask)
+    # data quality 
     recaptcha         = Q_RecaptchaScore,
     relid_dup         = Q_RelevantIDDuplicate,
     relid_fraud       = Q_RelevantIDFraudScore,
@@ -424,8 +424,8 @@ print(test_tbl)
 
 library(kableExtra)
 
-## ---- map scenario levels to the six columns (EDIT to your level names) ----
-scn_order <- levels(v$scenario6)          # e.g. c("P_base","P_info","P_adapt","S_base","S_info","S_adapt")
+## ---- map scenario levels to the six columns
+scn_order <- levels(v$scenario6)         
 stopifnot(length(scn_order) == 6, all(scn_order %in% names(balance_scn)))
 
 scn_cols <- c("Base", "\\makecell{Prior\\\\info}", "\\makecell{Prior info\\\\+ adapt}")
@@ -692,59 +692,6 @@ ia <- build_owners_noRA(ho = 0, fl = 0) |>
   mutate(ha_pct_of_damage = pmin(comp_rate * 100, 100))   # same 0–100 cap as before
 
 summarise_large(ia)
-
-
-################# TRYING WITH SUBSETTING TO ONLY FLOOD LOSSES, AND PPL WITHOUT FLOOD INSURANCE ################################
-
-
-# n_fmt <- function(d) format(nrow(d), big.mark = ",")
-# 
-# # Check coding / NAs before filtering
-# ia_raw[, .N, by = floodDamage]
-# 
-# cat("All registrations:                    ", n_fmt(ia_raw), "\n")
-# 
-# ia_fd <- ia_raw |> filter(floodDamage == 1)
-# cat("Step 1: floodDamage == 1:             ", n_fmt(ia_fd), "\n")
-# 
-# ia_fd_nfi <- ia_fd |> filter(floodInsurance == 0)
-# cat("Step 2: ... & floodInsurance == 0:    ", n_fmt(ia_fd_nfi), "\n")
-# 
-# # NULL = no restriction on that insurance field
-# build_owners_noRA <- function(data = ia_raw, ho = NULL, fl = NULL) {
-#   data |>
-#     filter(!is.na(rpfvl) | !is.na(ppfvl), ownRent == "O",
-#            is.null(ho) | homeOwnersInsurance %in% ho,
-#            is.null(fl) | floodInsurance %in% fl) |>
-#     mutate(
-#       verified_loss = coalesce(rpfvl, 0) + coalesce(ppfvl, 0),
-#       haAmount      = if (na_award_as_zero) coalesce(haAmount, 0) else haAmount,
-#       loss_award    = haAmount - coalesce(rentalAssistanceAmount, 0),
-#       year_decl     = year(as.Date(sub("T.*$", "", declarationDate)))
-#     ) |>
-#     filter(verified_loss > 0, is.na(haAmount) | haAmount <= ha_cap) |>
-#     left_join(cpi_year, by = "year_decl") |>
-#     mutate(verified_loss_2024 = verified_loss * cpi_2024 / cpi,
-#            comp_rate          = loss_award / verified_loss) |>
-#     filter(is.finite(comp_rate), comp_rate >= 0, !is.na(verified_loss_2024))
-# }
-# 
-# # New analysis sample: flood-damaged owners without flood insurance (any HO status)
-# ia <- build_owners_noRA(ia_fd_nfi) |>
-#   mutate(ha_pct_of_damage = pmin(comp_rate * 100, 100))
-# cat("Step 3: ... & owner, valid loss/award:", n_fmt(ia), "\n")
-# cat("        of which >= $40k (2024$):     ",
-#     format(sum(ia$verified_loss_2024 >= large_loss), big.mark = ","), "\n")
-# 
-# # Side-by-side with the old sample (no HO, no flood, all damage types)
-# bind_rows(
-#   summarise_large(ia) |> mutate(sample = "Flood dmg, no flood ins."),
-#   summarise_large(build_owners_noRA(ho = 0, fl = 0)) |> mutate(sample = "No HO, no flood (old)")
-# )
-
-
-
-
 
 
 ################################################################################################################################
@@ -1367,7 +1314,7 @@ belief_model <- feols(
     second_home * info_arm +
     DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
     Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
-  data = est, vcov = ~ResponseID
+  data = filter(est, not_sure == 0), vcov = ~ResponseID
 )
 
 belief_model2 <- feols(
@@ -1422,17 +1369,63 @@ est <- est %>%
     )
   )
 
+est <- est %>%
+  mutate(
+    overestimator = case_when(
+      not_sure == 1 | is.na(Beliefs_FEMA_Amount) ~ NA_integer_,
+      Beliefs_FEMA_Amount > 7500 ~ 1L,
+      TRUE ~ 0L),
+    underestimator = case_when(
+      not_sure == 1 | is.na(Beliefs_FEMA_Amount) ~ NA_integer_,
+      Beliefs_FEMA_Amount < 5000 ~ 1L,
+      TRUE ~ 0L)
+  )
+
 overest_model <- feols(
-  percent_aid ~ overestimator + second_home * info_arm +
+  percent_aid ~ overestimator + underestimator + second_home * info_arm +
     DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
     Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
   data = est, vcov = ~ResponseID
 )
 
 summary(overest_model)
-
 ## How many not sure 
+etable(belief_model, overest_model)
 
+## CHeck difference in variance:
+
+m2<- feols(
+  percent_aid ~ 
+    second_home * info_arm +
+    DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+    Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+  data = filter(est, not_sure == 0), vcov = ~ResponseID
+)
+belief_model <- feols(
+  percent_aid ~ belief_pct +
+    second_home * info_arm +
+    DisasterExperience + Gender + AgeGroup + AnnualIncome_grouped +
+    Party + Race2 + RiskAversion_bin + GovTrustBin + gap_quartile,
+  data = filter(est, not_sure == 0), vcov = ~ResponseID
+)
+
+summary(belief_model)
+summary(m2)
+
+
+########### COUNTERFACTUAL ANALYSIS:
+
+bel <- model.matrix(belief_model)[, "belief_pct"]
+b   <- coef(belief_model)[["belief_pct"]]
+gap <- mean(bel) - 7
+
+mean(bel)                                   # MEAN
+b * gap                                     # X
+confint(belief_model)["belief_pct", ] * gap # CI for X
+mean(fitted(belief_model))                  # AVG
+
+
+###
 # Respondent level: how many answered "not sure"?
 est %>%
   distinct(ResponseID, .keep_all = TRUE) %>%
@@ -1440,13 +1433,11 @@ est %>%
   mutate(share = round(100 * n / sum(n), 1))
 
 # Respondent level: "not sure" respondents who still have a dollar value
-# (these are what leaked into the uncorrected belief_model)
 est %>%
   distinct(ResponseID, .keep_all = TRUE) %>%
   count(not_sure, has_amount = !is.na(Beliefs_FEMA_Amount))
 
 # Respondent level: overestimator share among those who gave a belief
-# (the second [X]% in the paragraph; uses the corrected belief_pct)
 est %>%
   distinct(ResponseID, .keep_all = TRUE) %>%
   filter(!is.na(belief_pct)) %>%
@@ -1489,11 +1480,7 @@ lab <- c(
   "second_home"   = "Second home",
   "belief_pct"    = "Believed FEMA award (\\% of loss)",
   "overestimator" = "Overestimates FEMA award"
-  # fill in from print(all_terms), e.g.:
-  # "info_armInfo"              = "Prior risk information",
-  # "info_armAdapt"             = "Adaptive measures",
-  # "second_home:info_armInfo"  = "Second home $\\times$ Prior info",
-  # "second_home:info_armAdapt" = "Second home $\\times$ Adaptation"
+
 )
 
 # Same row order as the knowledge table: constant, scenario mains, belief, interactions
@@ -1584,6 +1571,47 @@ bind_rows(
   var_share(overest_model, "overestimator")
 )
 
+
+########## Counterfactual
+# =============================================================================
+# Counterfactual: set everyone's belief to the true FEMA award
+# =============================================================================
+
+true_pct <- 7          # actual FEMA award as % of a $75k loss 
+dat <- est[obs(belief_model), ]                     # estimation sample
+
+# --- (1) Continuous belief --------------------------------------------------
+b   <- coef(belief_model)[["belief_pct"]]
+se1 <- se(belief_model)[["belief_pct"]]
+gap <- mean(true_pct - dat$belief_pct)              # avg change in belief needed
+
+shift1 <- b * gap                                   # avg change in recommended aid
+round(c(baseline_rec = mean(dat$percent_aid),
+        mean_belief  = mean(dat$belief_pct),
+        belief_gap   = gap,
+        shift        = shift1,
+        lo           = shift1 - 1.96 * se1 * abs(gap),
+        hi           = shift1 + 1.96 * se1 * abs(gap)), 2)
+
+# --- (2) Over/under dummies: set both to 0 (everyone accurate) --------------
+g  <- -c(mean(dat$overestimator), mean(dat$underestimator))
+bb <- coef(overest_model)[c("overestimator", "underestimator")]
+V  <- vcov(overest_model)[c("overestimator", "underestimator"),
+                          c("overestimator", "underestimator")]
+
+shift2 <- sum(g * bb)
+se2    <- sqrt(drop(t(g) %*% V %*% g))
+round(c(share_over  = mean(dat$overestimator),
+        share_under = mean(dat$underestimator),
+        shift       = shift2,
+        lo          = shift2 - 1.96 * se2,
+        hi          = shift2 + 1.96 * se2), 2)
+
+# --- R2 with vs. without beliefs (same sample) ------------------------------
+no_belief <- update(belief_model, . ~ . - belief_pct, data = dat)
+round(c(r2_with    = r2(belief_model, "r2"),
+        r2_without = r2(no_belief, "r2"),
+        increment  = r2(belief_model, "r2") - r2(no_belief, "r2")), 4)
 #####################################
 
 ### In interpreting these findings, one point to note is that most respondents are not well informed about current levels of disaster assistance. For instance, in answer to a separate question, respondents report believing the existing FEMA grant program would cover \$XX of a \$75,000 loss, well above the median 7\% (\$5,250) that an IHP grant provides for this size of loss \$YYYY. Even respondents that have experienced a disaster and applied for FEMA aid tend to systematically over-estimate current generosity of disaster aid. This echoes previous findings that disaster insurance and assistance programs are generally not well understood by the public. 
@@ -1682,7 +1710,7 @@ stars <- as.character(cut(ct[, 4], c(-Inf, .001, .01, .05, Inf),
 cells <- sprintf("%.3f%s (%.3f)", ct[, 1], stars, ct[, 2])
 
 # ---- 2. Row labels ----
-# Left-hand names must match names(coef(m)) exactly -- check and edit as needed
+# Left-hand names must match names(coef(m)) exactly 
 demo_map <- c(
   "DisasterExperienceYes"               = "Has disaster experience",
   "GenderMale"                          = "Gender: Male",
@@ -2219,76 +2247,6 @@ ggsave(
 )
 
 
-
-############################## 
-# #--------------------------------------------------------------------------------------------------
-# #          FIGURES S4 a and b : ZERO SLOPE ANALYSIS   
-# #--------------------------------------------------------------------------------------------------
-# 
-# 
-# dat=readRDS("C:\\Users\\indumati\\Downloads\\fran_data.rds")
-# 
-# #characterize individuals based on variation in government aid preferred with responsibility
-# 
-# aidcoef=function(dataset){
-#   #regress government compensation on responsibility score - note there will be no remaining dof since only 2 observations per respondent
-#   #if responsibility is the same then can't estimate an effect
-#   if(dataset$resp[1]==dataset$resp[2]) return(NA)
-#   mod=lm(gov_amt~resp,data=dataset)
-#   return(mod$coefficients[2])
-# }
-# 
-# dat$ResponseID=as.factor(dat$ResponseID)
-# dat$resp=as.numeric(dat$resp)
-# 
-# result <- dat %>%
-#   split(.$ResponseID) %>%
-#   map(aidcoef) %>%
-#   enframe(name = "ResponseID", value = "coef") %>%
-#   dplyr::mutate(ResponseID = as.character(ResponseID)) %>%
-#   dplyr::mutate(coef=unlist(coef))
-# 
-# #also look at individual's residuals from regression of aid on responsibility (treat as factor)
-# 
-# respmod=lm(gov_amt~resp,data = dat%>%dplyr::mutate(resp=as.factor(resp)))
-# 
-# resids=data.frame(ID=dat$ResponseID,resid=respmod$residuals)
-# #take mean for each respondent
-# resids=resids%>%
-#   group_by(ID)%>%
-#   dplyr::summarise(resid=mean(resid))
-# 
-# #merge with slope data
-# inddat=merge(result%>%dplyr::mutate(ResponseID=as.factor(ResponseID)),resids,by.x="ResponseID",by.y="ID")
-# 
-# #identify respondents that only saw hypotheticals with primary or secondary home, not a mix
-# rels=dat%>%
-#   dplyr::select(ResponseID,second_home)%>%
-#   group_by(ResponseID)%>%
-#   dplyr::summarise(second_home_total=sum(second_home))%>%
-#   filter(second_home_total%in%c(0,2))
-# 
-# a=ggplot(inddat%>%filter(ResponseID%in%rels$ResponseID), aes(resid/250*100, coef/250*100)) +
-#   stat_density_2d(aes(fill = after_stat(density)),
-#                   geom = "raster",
-#                   contour = FALSE) +
-#   theme_minimal() +
-#   scale_fill_viridis_c(option = "magma",guide=FALSE) +
-#   coord_cartesian(ylim = c(-50, 50)) + 
-#   labs(x = "Residual Aid Allocation\n(% of $250,000 Loss)", y = "Slope of Aid Award with Individual Responsibility\n(% of $250,000 Loss per Unit Increase in Responsibility)")
-# 
-# countzeros=dim(inddat%>%filter(ResponseID%in%rels$ResponseID&coef!=0))[1]
-# 
-# b=ggplot(inddat%>%filter(ResponseID%in%rels$ResponseID&coef!=0),aes(coef/250*100))+geom_histogram(breaks=c(seq(-100,0,length.out=15),seq(0+100/14,100,length.out=14)))+theme_bw()+labs(x="Slope of Aid Award with Individual Responsibility\n(% of $250,000 Loss per Unit Increase in Responsibility)",y="Count")+
-#   geom_segment(x=0,y=0,yend=countzeros,col="goldenrod",lwd=1.5)+coord_cartesian(ylim=c(0,400))
-
-# ggsave("C:\\Users\\fmoore\\Box\\Davis Stuff\\Insurance\\Survey Paper\\Figures\\individualslopes_restrictedsample.pdf",plot=b)
-# 
-# ggsave("C:\\Users\\fmoore\\Box\\Davis Stuff\\Insurance\\Survey Paper\\Figures\\individualdensities_restrictedsample.pdf",plot=a)
-
-
-
-
 #--------------------------------------------------------------------------------------------------
 #          TABLES: EFFECT OF SCENARIOS ON LEVEL OF RESP, PERCAID
 #--------------------------------------------------------------------------------------------------
@@ -2549,7 +2507,7 @@ bind_rows(results %>% mutate(spec = "covariate-adjusted"),
 pull_long <- function(x, label) {
   data.frame(
     contrast = label,
-    quantity = c("Total effect", "Direct (ADE)", "Mediated (ACME)"),
+    quantity = c("Total effect", "Direct (ADE)", "Mediated (AME)"),
     est = c(x$tau.coef,  x$z.avg,       x$d.avg),
     lo  = c(x$tau.ci[1], x$z.avg.ci[1], x$d.avg.ci[1]),
     hi  = c(x$tau.ci[2], x$z.avg.ci[2], x$d.avg.ci[2]),
@@ -2572,48 +2530,46 @@ dec <- dec %>%
   left_join(strip_lab, by = "contrast") %>%
   mutate(strip = factor(strip, levels = strip_lab$strip),
          quantity = factor(quantity,
-                           levels = c("Total effect", "Direct (ADE)", "Mediated (ACME)")))
+                           levels = c("Total effect", "Direct (ADE)", "Mediated (AME)")))
 
-PAL <- c("Mediated (ACME)" = "#2C5F8A",   # the channel the paper is about
-         "Direct (ADE)"    = "#9AA5AE",   # everything else
-         "Total effect"    = "#1A1A1A")
+PAL <- c("Mediated (AME)" = "#2C5F8A",
+         "Direct (ADE)"   = "#9AA5AE",
+         "Total effect"   = "#1A1A1A")
+
+pt <- 1 / 2.845
 
 
-fig1_fe<- ggplot(dec, aes(x = est, y = quantity, colour = quantity)) +
-  geom_vline(xintercept = 0, linewidth = 0.4, colour = "grey55") +
-  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 1.1,
+fig_med_fe <- ggplot(dec, aes(x = est, y = quantity, colour = quantity)) +
+  geom_vline(xintercept = 0, linewidth = 0.5 * pt, colour = "grey55") +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 1 * pt,
                  alpha = 0.85, show.legend = FALSE) +
-  geom_point(size = 2.9, show.legend = FALSE) +
+  geom_point(size = 1.6, show.legend = FALSE) +
   geom_text(aes(label = sprintf("%+.1f", est)),
-            vjust = -1.25, size = 3.1, fontface = "bold",
+            vjust = -1.25, size = 6 * pt,
             show.legend = FALSE) +
   scale_colour_manual(values = PAL) +
   scale_x_continuous(expand = expansion(mult = 0.12)) +
   scale_y_discrete(expand = expansion(add = 0.75)) +
   facet_wrap(~ strip, ncol = 1) +
-  labs(x = "Effect on recommended aid",
-       y = NULL,
-       caption = paste("Points are posterior means with 95% quasi-Bayesian",
-                       "intervals; 1,000 draws, n = 3,922 vignettes.",
-                       "\nMediated + direct sum to the total effect.")) +
-  theme_minimal(base_size = 11) +
+  labs(x = "Effect on recommended aid", y = NULL) +
+  theme_minimal(base_size = 6, base_family = "Helvetica") +
   theme(
     panel.grid.major.y = element_blank(),
     panel.grid.minor   = element_blank(),
-    panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.3),
+    panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.25 * pt),
     panel.spacing      = unit(1.1, "lines"),
-    strip.text         = element_text(hjust = 0, face = "bold", size = 10.5,
-                                      margin = margin(b = 6)),
-    axis.text.y        = element_text(colour = "grey20", size = 9.8),
-    axis.title.x       = element_text(margin = margin(t = 10), size = 9.8),
-    plot.caption       = element_text(hjust = 0, colour = "grey45", size = 8,
-                                      margin = margin(t = 12)),
-    plot.margin        = margin(12, 16, 10, 12)
+    strip.text         = element_text(hjust = 0, face = "bold", size = 6,
+                                      margin = margin(b = 3)),
+    axis.text          = element_text(colour = "black", size = 6),
+    axis.title.x       = element_text(margin = margin(t = 4), size = 6),
+    plot.margin        = margin(3, 4, 3, 3)
   )
 
-fig1_fe
-ggsave("mediation_fe.png", fig1_fe,
-       width = 6.8, height = 6.4, dpi = 300, bg = "white")
+
+fig_med_fe
+ggsave("Figures/fig_med_fe_ncc.png", fig_med_fe,
+       width = 140, height = 90, units = "mm", dpi = 450, bg = "white")
+
 
 # ------------------------------------------------------------------------------
 # ##### DIFFERENT MODEL INCORPORATING SECOND HOME * INFO ARM - comment out when done
@@ -2658,7 +2614,7 @@ contrasts <- list(
   list(lab = "X3: second home vs. primary",  t = "second_home", a = "primary", b = "second"))
 
 tidy2 <- function(x) data.frame(
-  effect = c("ACME", "ADE", "Total"),
+  effect = c("AME", "ADE", "Total"),
   est = c(x$d.avg, x$z.avg, x$tau.coef),
   lo  = c(x$d.avg.ci[1], x$z.avg.ci[1], x$tau.ci[1]),
   hi  = c(x$d.avg.ci[2], x$z.avg.ci[2], x$tau.ci[2]))
@@ -2745,7 +2701,7 @@ het_full_plot = ggplot(pd, aes(est, lab, colour = effect)) +
   geom_pointrange(aes(xmin = lo, xmax = hi),
                   position = position_dodge(width = .55), size = .35) +
   facet_grid(split_var ~ contrast, scales = "free_y", space = "free_y") +
-  scale_colour_manual(values = c(ACME = "blue", ADE = "orange")) +
+  scale_colour_manual(values = c(AME = "blue", ADE = "orange")) +
   labs(x = "Effect on recommended aid (percentage points)", y = NULL, colour = NULL) +
   theme_bw(base_size = 13) +
   theme(strip.text.y   = element_text(angle = 0, size = 12),
@@ -2755,8 +2711,8 @@ het_full_plot = ggplot(pd, aes(est, lab, colour = effect)) +
         axis.title.x   = element_text(size = 13),
         legend.text    = element_text(size = 12),
         legend.position = "top")
-
-# ggsave(het_full_plot, "figures/Mediation/mediation_heterogeneity.png", width = 15, height = 11, dpi = 600)
+het_full_plot
+ggsave( "Figures/Mediation/mediation_heterogeneity_ncc.png", het_full_plot, width = 15, height = 11, dpi = 600)
 
 
 #-------------------------------------------------------------------------------
@@ -2773,9 +2729,9 @@ dec <- all_eff %>%
   dplyr::select(split_var, level, contrast, effect, est) %>%
   pivot_wider(names_from = effect, values_from = est) %>%
   mutate(
-    total_chk   = ACME + ADE,                      # sanity: should equal Total
-    same_sign   = sign(ACME) == sign(ADE),
-    prop_med    = ACME / Total,
+    total_chk   = AME + ADE,                      # sanity: should equal Total
+    same_sign   = sign(AME) == sign(ADE),
+    prop_med    = AME / Total,
     prop_lab    = ifelse(same_sign & abs(Total) > 1e-8,
                          percent(prop_med, accuracy = 1), "n.d."),
     tot_lab     = sprintf("%.1f pp", Total)
@@ -2785,9 +2741,9 @@ stopifnot(max(abs(dec$total_chk - dec$Total), na.rm = TRUE) < 1e-6)
 
 # long form for the stack, carrying the labels along
 bars <- dec %>%
-  dplyr::select(split_var, level, contrast, ACME, ADE, Total,
+  dplyr::select(split_var, level, contrast, AME, ADE, Total,
                 prop_lab, tot_lab, same_sign) %>%
-  pivot_longer(c(ACME, ADE), names_to = "effect", values_to = "est") %>%
+  pivot_longer(c(AME, ADE), names_to = "effect", values_to = "est") %>%
   left_join(cnt, by = c("split_var", "level")) %>%
   mutate(
     split_var = factor(split_var,
@@ -2796,7 +2752,7 @@ bars <- dec %>%
                                   "Risk Aversion", "Disaster Experience", "Government Trust")),
     lab = sub("^Annual Income ", "", paste0(level, "  (n = ", n_resp, ")")),
     lab = factor(lab, levels = rev(lab_lv)),
-    effect = factor(effect, levels = c("ADE", "ACME"))   # ACME on top of stack
+    effect = factor(effect, levels = c("ADE", "AME"))   # ACME on top of stack
   )
 
 # in-bar segment labels: value + share, placed at each segment's midpoint
@@ -2821,11 +2777,11 @@ ends <- dec %>%
                                   "Risk Aversion", "Disaster Experience", "Government Trust")),
     lab = sub("^Annual Income ", "", paste0(level, "  (n = ", n_resp, ")")),
     lab = factor(lab, levels = rev(lab_lv)),
-    end_lab = paste0("Total ", tot_lab, " | ACME ", prop_lab),
+    end_lab = paste0("Total ", tot_lab, " | AME ", prop_lab),
     hj      = ifelse(Total >= 0, -0.08, 1.08)
   )
 
-rng <- range(c(dec$Total, dec$ACME, dec$ADE), na.rm = TRUE)
+rng <- range(c(dec$Total, dec$AME, dec$ADE), na.rm = TRUE)
 pad <- diff(rng) * 0.45
 
 ggplot(seg, aes(est, lab, fill = effect)) +
@@ -2836,8 +2792,8 @@ ggplot(seg, aes(est, lab, fill = effect)) +
             aes(x = Total, y = lab, label = end_lab, hjust = hj),
             inherit.aes = FALSE, size = 2.9, colour = "grey25") +
   facet_grid(split_var ~ contrast, scales = "free_y", space = "free_y") +
-  scale_fill_manual(values = c(ACME = "blue", ADE = "orange"),
-                    breaks = c("ACME", "ADE")) +
+  scale_fill_manual(values = c(AME = "blue", ADE = "orange"),
+                    breaks = c("AME", "ADE")) +
   scale_x_continuous(expand = expansion(mult = c(.25, .25))) +
   coord_cartesian(xlim = c(rng[1] - pad, rng[2] + pad)) +
   labs(x = "Decomposition of total effect on recommended aid (percentage points)",
@@ -2991,6 +2947,7 @@ dec <- bind_rows(
 )
 library(patchwork)
 
+
 # strip text no longer needs the hazard tag — hazard is now shown once per block
 strip_lab <- dec %>%
   filter(!is.na(pm)) %>%
@@ -3002,7 +2959,7 @@ dec <- dec %>%
   left_join(strip_lab, by = c("contrast", "hazard")) %>%
   mutate(contrast = factor(contrast, levels = c(LAB["X1"], LAB["X2"], LAB["X3"])),
          quantity = factor(quantity,
-                           levels = c("Total effect", "Direct (ADE)", "Mediated (ACME)")))
+                           levels = c("Total effect", "Direct (ADE)", "Mediated (AME)")))
 
 n_flood <- nrow(est %>% filter(hazard == "flood"))
 n_fire  <- nrow(est %>% filter(hazard == "fire"))
@@ -3061,7 +3018,7 @@ fig_fire <- make_fig1(dec %>% filter(hazard == "Fire"), "Fire", HAZ_TXT["Fire"],
 
 fig_haz = fig_flood |fig_fire
 fig_haz
-ggsave("Figures/Mediation/med_haz.png", fig_haz,
+ggsave("Figures/Mediation/med_haz_ncc.png", fig_haz,
        width = 13.6, height = 6.4, dpi = 300, bg = "white")
 
 #######################

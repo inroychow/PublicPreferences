@@ -284,65 +284,58 @@ ref_lines <- data.frame(
   colour = c("gray40", "steelblue4")
 )
 ref_lines <- ref_lines[order(ref_lines$x), ]
-ref_lines$hjust <- c(1.04, -0.04)          # left line -> label to its left; right line -> to its right
-ref_lines$y     <- y_max * c(0.99, 0.86)   # stagger heights as a second safeguard
+ref_lines$hjust <- c(1.04, -0.04)          
+ref_lines$y     <- y_max * c(0.99, 0.86)  
 
-
+pt <- 1 / 2.845  
 
 combined_plot_pct <- ggplot() +
   geom_line(
     data = ia_ha_pct_density_2,
     aes(x = x, y = dens_scaled, linetype = damage_bin),
     colour = "red4",
-    linewidth = 1
+    linewidth = 1 * pt
   ) +
   geom_vline(
     xintercept = base_case_predicted,
-    colour = "gray35",
-    linetype = "dashed",
-    linewidth = 1.2
+    colour = "gray35", linetype = "dashed",
+    linewidth = 0.75 * pt
   ) +
   geom_vline(
     xintercept = ihp_pct_line,
-    colour = "gray35",
-    linetype = "dashed",
-    linewidth = 1.2
+    colour = "gray35", linetype = "dashed",
+    linewidth = 0.75 * pt
   ) +
   geom_errorbar(
     data = plot_data_numeric_pct,
-    aes(
-      x = estimate_centered,
-      y = y_numeric,
-      xmin = lower_centered,
-      xmax = upper_centered,
-      colour = covariate_label
-    ),
+    aes(x = estimate_centered, y = y_numeric,
+        xmin = lower_centered, xmax = upper_centered,
+        colour = covariate_label),
     width = 0.25,
-    linewidth = 1.6
+    linewidth = 1 * pt
   ) +
   geom_point(
     data = plot_data_numeric_pct,
     aes(x = estimate_centered, y = y_numeric, colour = covariate_label),
-    size = 4.2
+    size = 1.6
   ) +
   geom_text(
     data = plot_data_numeric_pct,
     aes(x = estimate_centered, y = y_numeric, label = sig_level),
     vjust = -0.2,
-    size = 8,
+    size = 6 * pt,
     colour = "black",
     show.legend = FALSE
   ) +
   scale_colour_manual(values = covariate_colors, guide = "none") +
   scale_linetype_manual(
     values = c("All damages" = "dashed", "≥ $40k" = "solid"),
-    name = "Damage Assessed"
-  ) + 
+    name = "Damage assessed"
+  ) +
   scale_x_continuous(
     breaks = seq(0, x_end, by = 10),
     labels = function(x) paste0(x, "%"),
-    expand = c(0, 0),
-    guide  = guide_axis(n.dodge = 1)
+    expand = c(0, 0)
   ) +
   coord_cartesian(xlim = c(0, x_end)) +
   scale_y_continuous(
@@ -358,74 +351,55 @@ combined_plot_pct <- ggplot() +
       name   = NULL
     )
   ) +
-  labs(
-    x = "Aid Award as Percent of Disaster Damages",
-    y = "",
-    title = ""
-  ) +
-  theme_minimal() +
+  labs(x = "Aid award as percent of disaster damages") +
+  theme_minimal(base_size = 6, base_family = "Helvetica") +
   theme(
-    legend.position    = "bottom",
-    legend.title = element_text(size = 12),
-    legend.key.width   = grid::unit(2.5, "cm"),
-    axis.text.y.right  = element_text(hjust = 0, margin = margin(l = 6)),
-    text               = element_text(size = 16),
-    axis.text.x        = element_text(size = 14),
-    axis.text.y        = element_text(size = 14),
-    axis.title.x       = element_text(size = 16),
-    axis.title.y       = element_text(size = 16),
-    panel.spacing      = grid::unit(1, "lines"),
-    axis.line.x        = element_line(color = "black", linewidth = 0.6),
-    axis.line.y.left   = element_line(color = "black", linewidth = 0.6),
-    axis.line.y.right  = element_line(color = "black", linewidth = 0.6),
-    panel.border       = element_blank()
-  ) +
-  guides(
-    linetype = guide_legend(
-      keywidth = grid::unit(1.2, "cm")
-    )
-  ) +  annotate(
-    "text",
-    x = base_case_predicted,
-    y = y_max * 1.04,
-    label = "Baseline\nrecommended aid",
-    hjust = 1.05, vjust = 1,
-    size = 4.8, colour = "gray40",
-    lineheight = 0.9
+    legend.position   = "bottom",
+    legend.title      = element_text(size = 6),
+    legend.text       = element_text(size = 6),
+    legend.key.width  = grid::unit(8, "mm"),
+    axis.text         = element_text(size = 6, colour = "black"),
+    axis.title        = element_text(size = 6),
+    axis.text.y.right = element_text(hjust = 0, margin = margin(l = 2)),
+    panel.spacing     = grid::unit(1, "lines"),
+    axis.line.x       = element_line(colour = "black", linewidth = 0.5 * pt),
+    axis.line.y.left  = element_line(colour = "black", linewidth = 0.5 * pt),
+    axis.line.y.right = element_line(colour = "black", linewidth = 0.5 * pt),
+    panel.border      = element_blank()
   ) +
   annotate(
     "text",
-    x = ihp_pct_line,
-    y = y_max * 1.04,
-    label = "IHP \nmax coverage\nfor $250K loss",
+    x = base_case_predicted, y = y_max * 1.04,
+    label = "Baseline\nrecommended aid",
     hjust = 1.05, vjust = 1,
-    size = 4.8, colour = "gray35",
-    lineheight = 0.9
+    size = 6 * pt, colour = "gray40", lineheight = 0.9
+  ) +
+  annotate(
+    "text",
+    x = ihp_pct_line, y = y_max * 1.04,
+    label = "IHP\nmaximum coverage\nfor $250K loss",
+    hjust = 1.05, vjust = 1,
+    size = 6 * pt, colour = "gray35", lineheight = 0.9
   )
 
-# Extract the y-axis labels and their corresponding colors
 axis_label_colors <- plot_data_numeric_pct %>%
   arrange(desc(y_numeric)) %>%
   pull(covariate_label) %>%
   as.character() %>%
   sapply(function(x) covariate_colors[x])
 
-# Apply colored labels to the right y-axis
 combined_plot_pct <- combined_plot_pct +
   theme(
     axis.text.y.right = element_text(
-      hjust = 0, 
-      margin = margin(l = 6),
-      colour = axis_label_colors
+      hjust = 0,
+      margin = margin(l = 2),
+      colour = axis_label_colors,
+      size = 6
     )
   )
-
 combined_plot_pct
-
-ggsave("Figures\\dist_plot_homeowners_noRA.png",
-       plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
-ggsave("Figures\\dist_plot_7.30.png",
-       plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
+ggsave("Figures/dist_NCC.png", combined_plot_pct,
+       width = 180, height = 110, units = "mm", dpi = 450, bg = "white")
 
 # ggsave("L:\\Wetland Flood Mitigation\\Disaster aid survey\\EDA Figures\\Fairness paper figures\\fig1.png", plot = combined_plot_pct, width = 12, height = 7, dpi = 300)
 
@@ -444,13 +418,14 @@ hyp <- hyp %>%
     RiskAversion_bin = relevel(RiskAversion_bin, ref = "Risk neutral"),
     GovTrustBin      = relevel(GovTrustBin, ref = "High government trust") # pick yours
   )
+pt <- 1 / 2.845   # points -> mm, for geom_text size and linewidth
 
 plot_scenario_effects <- function(model,
                                   data,
                                   cluster_var = "ResponseID",
-                                  outcome_label = "Predicted Responsibility (1–10)",
+                                  outcome_label = "Predicted responsibility (1-10)",
                                   save_path = NULL,
-                                  width = 12, height = 6, dpi = 300,
+                                  width = 180, height = 90, units = "mm", dpi = 450,
                                   include_second_home = FALSE) {
   
   # ---------------------------
@@ -518,7 +493,7 @@ plot_scenario_effects <- function(model,
           "Prior info, adaptation",
         TRUE ~ "Other"
       ),
-      Home_Type = dplyr::if_else(second_home == sh_base, "Primary Residence", "Second Home"),
+      Home_Type = dplyr::if_else(second_home == sh_base, "Primary residence", "Second home"),
       is_base_case = (second_home == sh_base & prior_info == 0 & adaptive_measures == 0),
       point_color  = ifelse(is_base_case, "black", Home_Type)
     )
@@ -529,6 +504,11 @@ plot_scenario_effects <- function(model,
   X <- model.matrix(model, data = grid)
   
   common <- intersect(colnames(X), names(coef(model)))
+  if (length(common) != length(coef(model))) {
+    warning("Dropped ", length(coef(model)) - length(common),
+            " coefficient(s) when matching model.matrix to coef(); ",
+            "contrast standard errors may be wrong.")
+  }
   X <- X[, common, drop = FALSE]
   b <- coef(model)[common]
   V <- vcv_cl[common, common]
@@ -552,7 +532,6 @@ plot_scenario_effects <- function(model,
         p_val < .001 ~ "***",
         p_val < .01  ~ "**",
         p_val < .05  ~ "*",
-        p_val < .1   ~ ".",
         TRUE         ~ ""
       )
     )
@@ -569,7 +548,7 @@ plot_scenario_effects <- function(model,
     )
   
   # stars below lower whisker
-  y_gap <- diff(range(c(grid$low, grid$high), na.rm = TRUE)) * 0.008
+  y_gap <- diff(range(c(grid$low, grid$high), na.rm = TRUE)) * 0.03
   grid <- grid %>% dplyr::mutate(y_star = low - y_gap)
   
   pd <- position_dodge(width = 0.35)
@@ -579,76 +558,77 @@ plot_scenario_effects <- function(model,
     p <- ggplot(grid, aes(x = Scenario, y = est)) +
       # draw dashed line FIRST so points sit on top
       geom_hline(yintercept = grid$est[grid$is_base_case],
-                 linetype = "dashed", colour = "black", linewidth = 1) +
+                 linetype = "dashed", colour = "black", linewidth = 0.75 * pt) +
       geom_errorbar(aes(ymin = low, ymax = high),
-                    width = 0, size = 1.1) +
+                    width = 0, linewidth = 1 * pt) +
       geom_point(aes(shape = is_base_case),
                  colour = "#D55E00",
-                 size = 4.5) +
+                 size = 1.6) +
       geom_text(aes(y = y_star, label = stars),
-                vjust = 1.1, size = 6, show.legend = FALSE) +
+                vjust = 1.1, size = 6 * pt, show.legend = FALSE) +
       coord_cartesian(clip = "off") +
       expand_limits(y = min(grid$y_star, na.rm = TRUE) - y_gap * 0.5) +
       scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 17), guide = "none") +
       labs(x = NULL, y = outcome_label) +
-      theme_minimal(base_size = 18) +
+      theme_minimal(base_size = 6, base_family = "Helvetica") +
       theme(
-        axis.title.y       = element_text(size = 20, margin = margin(r = 12)),
-        axis.text.x        = element_text(size = 16),
-        axis.text.y        = element_text(size = 16),
+        axis.title.y       = element_text(size = 6, margin = margin(r = 3)),
+        axis.text          = element_text(size = 6, colour = "black"),
         panel.grid.major.x = element_blank(),
-        plot.margin        = margin(t = 10, r = 10, b = 25, l = 55)
+        plot.margin        = margin(t = 3, r = 3, b = 6, l = 5)
       )
     
   } else {
     grid <- grid %>%
       dplyr::mutate(
-        Home_Type   = factor(Home_Type, levels = c("Second Home", "Primary Residence")),
-        point_color = factor(point_color, levels = c("black", "Second Home", "Primary Residence"))
+        Home_Type   = factor(Home_Type, levels = c("Second home", "Primary residence")),
+        point_color = factor(point_color, levels = c("black", "Second home", "Primary residence"))
       )
     
     p <- ggplot(grid, aes(x = Scenario, y = est, group = Home_Type)) +
       # draw dashed line FIRST so points (triangle) sit on top
       geom_hline(yintercept = grid$est[grid$is_base_case],
-                 linetype = "dashed", colour = "black", linewidth = 1) +
+                 linetype = "dashed", colour = "black", linewidth = 0.75 * pt) +
       geom_errorbar(aes(ymin = low, ymax = high, colour = Home_Type),
-                    width = 0, size = 1.1, position = pd) +
+                    width = 0, linewidth = 1 * pt, position = pd) +
       geom_point(aes(shape = is_base_case, colour = point_color),
-                 size = 4.5, position = pd) +
+                 size = 1.6, position = pd) +
       geom_text(aes(y = y_star, label = stars),
-                vjust = 1.1, position = pd, size = 6, show.legend = FALSE) +
+                vjust = 1.1, position = pd, size = 6 * pt, show.legend = FALSE) +
       coord_cartesian(clip = "off") +
       expand_limits(y = min(grid$y_star, na.rm = TRUE) - y_gap * 0.5) +
       scale_colour_manual(
         values = c(
-          "Primary Residence" = "#D55E00",
-          "Second Home"       = "#0072B2",
+          "Primary residence" = "#D55E00",
+          "Second home"       = "#0072B2",
           "black"             = "black"
         ),
-        breaks = c("Primary Residence", "Second Home"),
-        labels = c("Primary Residence", "Second Home")
+        breaks = c("Primary residence", "Second home"),
+        labels = c("Primary residence", "Second home")
       ) +
       scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 17), guide = "none") +
-      labs(x = NULL, y = outcome_label, colour = "Home Type") +
-      theme_minimal(base_size = 18) +
+      labs(x = NULL, y = outcome_label, colour = "Home type") +
+      theme_minimal(base_size = 6, base_family = "Helvetica") +
       theme(
-        axis.title.y       = element_text(size = 20, margin = margin(r = 12)),
-        axis.text.x        = element_text(size = 16),
-        axis.text.y        = element_text(size = 16),
+        axis.title.y       = element_text(size = 6, margin = margin(r = 3)),
+        axis.text          = element_text(size = 6, colour = "black"),
         panel.grid.major.x = element_blank(),
         legend.position    = "bottom",
-        legend.title       = element_text(size = 16),
-        legend.text        = element_text(size = 14),
-        plot.margin        = margin(t = 100, r = 10, b = 25, l = 55)
+        legend.title       = element_text(size = 6),
+        legend.text        = element_text(size = 6),
+        legend.key.size    = grid::unit(3, "mm"),
+        plot.margin        = margin(t = 3, r = 3, b = 6, l = 5)
       )
   }
   
   if (!is.null(save_path)) {
-    ggsave(save_path, p, width = width, height = height, dpi = dpi)
+    ggsave(save_path, p, width = width, height = height, units = units, dpi = dpi)
   }
   
   return(p)
 }
+
+
 
 
 ### MODELS ###
@@ -675,7 +655,7 @@ p_resp <- plot_scenario_effects(
   data  = hyp,
   outcome_label = "Predicted Responsibility (1–10)",
   include_second_home = TRUE,
-  save_path = "Figures/resp_plot_9.2.png"
+  save_path = "Figures/resp_plot_ncc.png"
 )
 p_resp
 p_aid <- plot_scenario_effects(
@@ -683,70 +663,66 @@ p_aid <- plot_scenario_effects(
   data  = hyp,
   outcome_label = "Predicted Recommended Government Aid\n(% of Loss)",
   include_second_home = TRUE,
-  save_path = "Figures/aid_plot_9.2.png")
+  save_path = "Figures/aid_plot_ncc.png")
 
 p_aid
+
 
 #-----------------------------------------------------------------------------------------
 #   FIGURE:  Ridge plot of perceived responsibility against recommended government aid   |           
 #-----------------------------------------------------------------------------------------
 
 library(ggridges)
+library(ggridges)
 
-plot_ridge_resp_aid <- function(hyp) {
-  # ensure numeric response and bounded aid
+pt <- 1 / 2.845
+
+plot_ridge_resp_aid <- function(hyp, r2 = NULL) {
   hyp <- hyp %>%
     mutate(
       resp = as.numeric(resp),
       percent_aid = as.numeric(percent_aid)
     )
   
-  # tidy factors and scenario label (kept in case you want to facet later)
   hyp_plot <- hyp %>%
     mutate(
       second_home_f = if_else(second_home == 1, "Second home", "Primary home"),
       prior_info_f  = if_else(prior_info  == 1, "Had prior info", "No prior info"),
       adaptive_f    = if_else(adaptive_measures == 1, "Adapted", "Did not adapt"),
       scenario      = interaction(second_home_f, prior_info_f, adaptive_f, sep = " | "),
-      # ordered levels 0..10 even if some are missing in data
       resp_factor   = factor(resp, levels = 0:10)
     )
   
-  # per-level means (drops NAs safely)
   aid_means <- hyp_plot %>%
     group_by(resp_factor) %>%
     summarize(mean_aid = mean(percent_aid, na.rm = TRUE), .groups = "drop") %>%
     filter(!is.na(resp_factor))
   
-  # global linear fit and predictions at integer resp 0..10
   lm_fit <- lm(percent_aid ~ resp, data = hyp_plot)
   pred_df <- data.frame(resp = 0:10)
   pred_df$pred_aid <- predict(lm_fit, newdata = pred_df)
   pred_df$resp_factor <- factor(pred_df$resp, levels = 0:10)
   
-  # plot
   p_left <- ggplot(hyp_plot, aes(x = percent_aid, y = resp_factor)) +
     geom_density_ridges(
-      scale = 2,
+      scale = 1.2,
       rel_min_height = 0.01,
       fill = "grey85",
       color = "grey40",
       alpha = 0.9,
-      size = 0.3
+      linewidth = 0.5 * pt
     ) +
-    # mean points (x = mean aid for each responsibility level)
     geom_point(
       data = aid_means,
       aes(x = mean_aid, y = resp_factor),
       inherit.aes = FALSE,
-      size = 2.2
+      size = 1
     ) +
-    # best-fit line across responsibility levels
     geom_line(
       data = pred_df,
       aes(x = pred_aid, y = resp_factor, group = 1),
       inherit.aes = FALSE,
-      linewidth = 0.9
+      linewidth = 0.75 * pt
     ) +
     scale_x_continuous(
       name = "Recommended government aid (% of loss)",
@@ -756,28 +732,34 @@ plot_ridge_resp_aid <- function(hyp) {
       name = "Perceived responsibility"
     ) +
     coord_flip() +
-    theme_minimal(base_size = 18) +
+    theme_minimal(base_size = 6, base_family = "Helvetica") +
     theme(
-      axis.title.x       = element_text(size = 20),
-      axis.title.y       = element_text(size = 20),
-      axis.text.x        = element_text(size = 16),
-      axis.text.y        = element_text(size = 16),
-      panel.grid.minor   = element_blank(),
-      legend.position    = "none"
+      axis.title       = element_text(size = 6),
+      axis.text        = element_text(size = 6, colour = "black"),
+      panel.grid.minor = element_blank(),
+      legend.position  = "none",
+      plot.margin      = margin(t = 3, r = 3, b = 3, l = 5)
     )
+  
+  if (!is.null(r2)) {
+    p_left <- p_left +
+      annotate("text", x = 95, y = 10.5,
+               label = sprintf("italic(R)^2 == %.2f", r2),
+               parse = TRUE, size = 6 * pt, hjust = -1.5, colour = "grey30")
+  }
   
   p_left
 }
 
-# usage
-p_ridge <- plot_ridge_resp_aid(hyp)
-p_ridge
-# # Fit the linear model
-lm_fit <- feols(percent_aid ~ resp, data = hyp, vcov = ~ResponseID )
+lm_fit <- feols(percent_aid ~ resp, data = hyp, vcov = ~ResponseID)
 summary(lm_fit)
 
-ggsave("Figures/ridge_plot_9.21.png",
-        p_ridge, width = 12, height = 7, dpi = 300) # ADD R2 IN MSPAINT
+p_ridge <- plot_ridge_resp_aid(hyp, r2 = fitstat(lm_fit, "r2")$r2)
+p_ridge
+
+p_ridge <- plot_ridge_resp_aid(hyp, r2 = fitstat(lm_fit, "r2")$r2)
+ggsave("Figures/ridge_plot_ncc.png", p_ridge,
+       width = 180, height = 60, units = "mm", dpi = 450, bg = "white")
 
 
 
@@ -951,7 +933,7 @@ LAB <- c(X1 = "X1 Prior info only\nvs. baseline",
 pull_long <- function(x, label) {
   data.frame(
     contrast = label,
-    quantity = c("Total effect", "Direct (ADE)", "Mediated (ACME)"),
+    quantity = c("Total effect", "Direct (ADE)", "Mediated (AME)"),
     est = c(x$tau.coef,  x$z.avg,       x$d.avg),
     lo  = c(x$tau.ci[1], x$z.avg.ci[1], x$d.avg.ci[1]),
     hi  = c(x$tau.ci[2], x$z.avg.ci[2], x$d.avg.ci[2]),
@@ -974,45 +956,40 @@ dec <- dec %>%
   left_join(strip_lab, by = "contrast") %>%
   mutate(strip = factor(strip, levels = strip_lab$strip),
          quantity = factor(quantity,
-                           levels = c("Total effect", "Direct (ADE)", "Mediated (ACME)")))
+                           levels = c("Total effect", "Direct (ADE)", "Mediated (AME)")))
 
-PAL <- c("Mediated (ACME)" = "#2C5F8A",   # the channel the paper is about
-         "Direct (ADE)"    = "#9AA5AE",   # everything else
-         "Total effect"    = "#1A1A1A")
-
+PAL <- c("Mediated (AME)" = "#2C5F8A",
+         "Direct (ADE)"   = "#9AA5AE",
+         "Total effect"   = "#1A1A1A")
+pt <- 1 / 2.845
 
 fig_med <- ggplot(dec, aes(x = est, y = quantity, colour = quantity)) +
-  geom_vline(xintercept = 0, linewidth = 0.4, colour = "grey55") +
-  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 1.1,
+  geom_vline(xintercept = 0, linewidth = 0.5 * pt, colour = "grey55") +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 1 * pt,
                  alpha = 0.85, show.legend = FALSE) +
-  geom_point(size = 2.9, show.legend = FALSE) +
+  geom_point(size = 1.6, show.legend = FALSE) +
   geom_text(aes(label = sprintf("%+.1f", est)),
-            vjust = -1.25, size = 3.1, fontface = "bold",
+            vjust = -1.25, size = 6 * pt,
             show.legend = FALSE) +
   scale_colour_manual(values = PAL) +
   scale_x_continuous(expand = expansion(mult = 0.12)) +
   scale_y_discrete(expand = expansion(add = 0.75)) +
   facet_wrap(~ strip, ncol = 1) +
-  labs(x = "Effect on recommended aid",
-       y = NULL,
-       caption = paste("Points are posterior means with 95% quasi-Bayesian",
-                       "intervals; 1,000 draws, n = 3,922 vignettes.",
-                       "\nMediated + direct sum to the total effect.")) +
-  theme_minimal(base_size = 11) +
+  labs(x = "Effect on recommended aid", y = NULL) +
+  theme_minimal(base_size = 6, base_family = "Helvetica") +
   theme(
     panel.grid.major.y = element_blank(),
     panel.grid.minor   = element_blank(),
-    panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.3),
+    panel.grid.major.x = element_line(colour = "grey92", linewidth = 0.25 * pt),
     panel.spacing      = unit(1.1, "lines"),
-    strip.text         = element_text(hjust = 0, face = "bold", size = 10.5,
-                                      margin = margin(b = 6)),
-    axis.text.y        = element_text(colour = "grey20", size = 9.8),
-    axis.title.x       = element_text(margin = margin(t = 10), size = 9.8),
-    plot.caption       = element_text(hjust = 0, colour = "grey45", size = 8,
-                                      margin = margin(t = 12)),
-    plot.margin        = margin(12, 16, 10, 12)
+    strip.text         = element_text(hjust = 0, face = "bold", size = 6,
+                                      margin = margin(b = 3)),
+    axis.text          = element_text(colour = "black", size = 6),
+    axis.title.x       = element_text(margin = margin(t = 4), size = 6),
+    plot.margin        = margin(3, 4, 3, 3)
   )
 
 fig_med
-# ggsave("Figures/Mediation/mediation.png", fig1,
-#        width = 6.8, height = 6.4, dpi = 300, bg = "white")
+# ggsave("Figures/fig_med_ncc.png", fig_med,
+#        width = 140, height = 90, units = "mm", dpi = 450, bg = "white")
+
